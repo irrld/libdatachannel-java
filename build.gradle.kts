@@ -184,6 +184,7 @@ val dockcrossOutputDir: Directory = project.layout.buildDirectory.get().dir("doc
 val nativeForHostOutputDir: Directory = dockcrossOutputDir.dir("host")
 val compileNativeForHost = tasks.register<DockcrossRunTask>("compileNativeForHost") {
     baseConfigure(nativeForHostOutputDir, BuildTarget(image = null, family = "host", classifier = "host"))
+    extraEnv.put("BUILD_JNI_TESTS", "ON")
     unsafeWritableMountSource = true
     runner(NonContainerRunner)
 }
