@@ -63,6 +63,9 @@ add_library(datachannel-java SHARED
         src/native_track.cpp
         src/callback.cpp)
 if(BUILD_JNI_TESTS)
-    target_sources(datachannel-java PRIVATE test/thread_lifecycle.cpp)
+    target_compile_definitions(datachannel-java PRIVATE BUILD_JNI_TESTS)
+    target_sources(datachannel-java PRIVATE
+            test/callback_lifecycle.cpp
+            test/thread_lifecycle.cpp)
 endif()
 target_link_libraries(datachannel-java PRIVATE datachannel-static)
