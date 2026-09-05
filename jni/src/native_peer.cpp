@@ -370,3 +370,10 @@ JNIEXPORT jlong JNICALL Java_tel_schich_libdatachannel_LibDataChannelNative_rtcG
         JNIEnv* env, jclass clazz) {
     return static_cast<jlong>(rtcGetPeerConnectionCreationAttempts());
 }
+
+JNIEXPORT jint JNICALL
+Java_tel_schich_libdatachannel_LibDataChannelNative_rtcClosePeerConnectionAndWait(JNIEnv* env, jclass clazz,
+                                                                                  const jint peerHandle,
+                                                                                  const jint timeoutMs) {
+    return rtcClosePeerConnectionAndWait(peerHandle, timeoutMs);
+}

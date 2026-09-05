@@ -14,7 +14,7 @@ set(NO_EXAMPLES ON CACHE BOOL "configure libdatachannel build")
 set(ENABLE_WARNINGS_AS_ERRORS OFF CACHE BOOL "Disable warnings as errors for libsrtp" FORCE)
 add_subdirectory(libdatachannel)
 
-include_directories(libdatachannel/include generated)
+include_directories(libdatachannel/include libdatachannel/deps/libjuice/include generated)
 include_directories(jdk)
 if(WIN32)
     include_directories(jdk/windows)
@@ -59,6 +59,7 @@ add_library(datachannel-java SHARED
         src/util.cpp
         src/native_channel.cpp
         src/native_peer.cpp
+        src/native_mux.cpp
         src/native_track.cpp
         src/callback.cpp)
 target_link_libraries(datachannel-java PRIVATE datachannel-static)
