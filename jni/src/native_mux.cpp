@@ -1,146 +1,123 @@
 #include "util.hpp"
 #include <jni.h>
-#include <juice/juice.h>
+#include <rtc/rtc.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 
-struct raw_mux {
-    JavaVM* vm;
-    jobject listener;
+struct ice_mux {
+    int listener;
+    jobject owner;
     jmethodID dispatch;
-    char* address;
-    int port;
 };
 
-static bool raw_packet(const void* data, size_t size, const char* address, uint16_t port, void* ptr) {
-    const auto mux = static_cast<raw_mux*>(ptr);
-    if (size > 65535) {
-        return false;
-    }
-    JNIEnv* env = nullptr;
-    bool attached = false;
-    const jint state = mux->vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
-    if (state == JNI_EDETACHED) {
-        if (mux->vm->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr) != JNI_OK) {
-            return false;
-        }
-        attached = true;
-    } else if (state != JNI_OK) {
-        return false;
-    }
-    bool accepted = false;
-    if (env->PushLocalFrame(4) == 0) {
-        jbyteArray packet = env->NewByteArray(static_cast<jsize>(size));
-        if (packet != nullptr) {
-            env->SetByteArrayRegion(packet, 0, static_cast<jsize>(size), static_cast<const jbyte*>(data));
-            jstring host = env->ExceptionCheck() ? nullptr : env->NewStringUTF(address);
-            if (host != nullptr) {
-                accepted = env->CallBooleanMethod(mux->listener, mux->dispatch, packet, host, static_cast<jint>(port));
-            }
+extern "C" JNIEXPORT jint JNICALL Java_tel_schich_libdatachannel_IceUdpMuxListener_listenerIdNative(
+        JNIEnv* env, jclass clazz, const jlong handle) {
+    return reinterpret_cast<ice_mux*>(static_cast<intptr_t>(handle))->listener;
+}
+
+static void RTC_API incoming_request(int listener, const rtcIceUdpMuxRequest* request, void* ptr) {
+    const auto mux = static_cast<ice_mux*>(ptr);
+    JNIEnv* env = get_jni_env();
+    bool queued = false;
+    if (env != nullptr && env->PushLocalFrame(4) == 0) {
+        jstring local = env->NewStringUTF(request->localUfrag);
+        jstring remote = !env->ExceptionCheck() ? env->NewStringUTF(request->remoteUfrag) : nullptr;
+        jstring address = !env->ExceptionCheck() ? env->NewStringUTF(request->remoteAddress) : nullptr;
+        if (!env->ExceptionCheck()) {
+            queued = env->CallBooleanMethod(mux->owner, mux->dispatch, static_cast<jlong>(request->id), local, remote,
+                                            address, static_cast<jint>(request->remotePort));
         }
         if (env->ExceptionCheck()) {
             env->ExceptionClear();
-            accepted = false;
+            queued = false;
         }
         env->PopLocalFrame(nullptr);
-    } else if (env->ExceptionCheck()) {
+    } else if (env != nullptr && env->ExceptionCheck()) {
         env->ExceptionClear();
     }
-    if (attached) {
-        mux->vm->DetachCurrentThread();
+    if (!queued) {
+        rtcRejectIceUdpMuxRequest(listener, request->id);
     }
-    return accepted;
 }
 
-extern "C" JNIEXPORT jlong JNICALL Java_tel_schich_libdatachannel_RawUdpMuxListener_openNative(
-        JNIEnv* env, jobject self, jstring address, const jint port) {
-    const auto mux = static_cast<raw_mux*>(calloc(1, sizeof(raw_mux)));
+extern "C" JNIEXPORT jlong JNICALL Java_tel_schich_libdatachannel_IceUdpMuxListener_openNative(
+        JNIEnv* env, jobject self, jstring address, const jint port, const jint maxPending, const jint timeoutMs) {
+    const auto mux = static_cast<ice_mux*>(calloc(1, sizeof(ice_mux)));
     if (mux == nullptr) {
         return 0;
     }
-    const char* host = env->GetStringUTFChars(address, nullptr);
-    if (host == nullptr) {
-        free(mux);
-        return 0;
-    }
-    mux->address = strdup(host);
-    env->ReleaseStringUTFChars(address, host);
-    mux->port = port;
-    env->GetJavaVM(&mux->vm);
-    mux->listener = env->NewGlobalRef(self);
-    jclass clazz = env->GetObjectClass(self);
-    mux->dispatch = clazz != nullptr ? env->GetMethodID(clazz, "dispatch", "([BLjava/lang/String;I)Z") : nullptr;
+    mux->listener = -1;
+    mux->owner = env->NewGlobalRef(self);
+    jclass clazz = !env->ExceptionCheck() ? env->GetObjectClass(self) : nullptr;
+    mux->dispatch = clazz != nullptr
+            ? env->GetMethodID(clazz, "dispatch", "(JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;I)Z")
+            : nullptr;
     if (clazz != nullptr) {
         env->DeleteLocalRef(clazz);
     }
-    if (mux->address == nullptr || mux->listener == nullptr || mux->dispatch == nullptr || env->ExceptionCheck() ||
-        juice_mux_listen_raw(mux->address, port, raw_packet, mux) != 0) {
-        if (mux->listener != nullptr) {
-            env->DeleteGlobalRef(mux->listener);
+    const char* host = !env->ExceptionCheck() ? env->GetStringUTFChars(address, nullptr) : nullptr;
+    if (host != nullptr && mux->owner != nullptr && mux->dispatch != nullptr) {
+        rtcIceUdpMuxListenerConfiguration config = {};
+        config.bindAddress = host;
+        config.port = static_cast<uint16_t>(port);
+        config.maxPendingRequests = static_cast<unsigned int>(maxPending);
+        config.requestTimeoutMs = static_cast<unsigned int>(timeoutMs);
+        mux->listener = rtcCreateIceUdpMuxListener(&config, incoming_request, mux);
+    }
+    if (host != nullptr) {
+        env->ReleaseStringUTFChars(address, host);
+    }
+    if (mux->listener < 0) {
+        if (mux->owner != nullptr) {
+            env->DeleteGlobalRef(mux->owner);
         }
-        free(mux->address);
         free(mux);
         return 0;
     }
     return static_cast<jlong>(reinterpret_cast<intptr_t>(mux));
 }
 
-extern "C" JNIEXPORT void JNICALL Java_tel_schich_libdatachannel_RawUdpMuxListener_closeNative(
+extern "C" JNIEXPORT void JNICALL Java_tel_schich_libdatachannel_IceUdpMuxListener_closeNative(
         JNIEnv* env, jclass clazz, const jlong handle) {
-    const auto mux = reinterpret_cast<raw_mux*>(static_cast<intptr_t>(handle));
-    // Registry locking waits for an in-flight callback before releasing JNI refs.
-    if (juice_mux_listen_raw(mux->address, mux->port, nullptr, nullptr) != 0) {
-        throw_native_exception(env, "Failed to close raw UDP mux");
+    const auto mux = reinterpret_cast<ice_mux*>(static_cast<intptr_t>(handle));
+    if (rtcDeleteIceUdpMuxListener(mux->listener) != RTC_ERR_SUCCESS) {
+        throw_native_exception(env, "Failed to close ICE UDP mux listener");
         return;
     }
-    env->DeleteGlobalRef(mux->listener);
-    free(mux->address);
+    // Native deletion waits for in-flight metadata callbacks before releasing this reference.
+    env->DeleteGlobalRef(mux->owner);
     free(mux);
 }
 
-extern "C" JNIEXPORT jlongArray JNICALL Java_tel_schich_libdatachannel_RawUdpMuxListener_statsNative(
-        JNIEnv* env, jclass clazz, const jlong handle) {
-    const auto mux = reinterpret_cast<raw_mux*>(static_cast<intptr_t>(handle));
-    juice_mux_stats_t stats;
-    if (juice_mux_get_stats(mux->address, mux->port, &stats) != 0) {
-        throw_native_exception(env, "Raw UDP mux statistics unavailable");
+extern "C" JNIEXPORT jint JNICALL Java_tel_schich_libdatachannel_IceUdpMuxListener_acceptNative(
+        JNIEnv* env, jclass clazz, const jint listener, const jlong requestId, const jint peer) {
+    return rtcAcceptIceUdpMuxPeer(listener, static_cast<uint64_t>(requestId), peer);
+}
+
+extern "C" JNIEXPORT jint JNICALL Java_tel_schich_libdatachannel_IceUdpMuxListener_rejectNative(
+        JNIEnv* env, jclass clazz, const jint listener, const jlong requestId) {
+    return rtcRejectIceUdpMuxRequest(listener, static_cast<uint64_t>(requestId));
+}
+
+extern "C" JNIEXPORT jlongArray JNICALL Java_tel_schich_libdatachannel_IceUdpMuxListener_statsNative(
+        JNIEnv* env, jclass clazz, const jint listener) {
+    rtcIceUdpMuxListenerStats stats;
+    if (rtcGetIceUdpMuxListenerStats(listener, &stats) != RTC_ERR_SUCCESS) {
+        throw_native_exception(env, "ICE UDP mux statistics unavailable");
         return nullptr;
     }
     const jlong values[] = {
             static_cast<jlong>(stats.received),
             static_cast<jlong>(stats.rejected),
             static_cast<jlong>(stats.agents),
-            static_cast<jlong>(stats.mapped_tuples),
+            static_cast<jlong>(stats.mappedTuples),
+            static_cast<jlong>(stats.pendingRequests),
+            static_cast<jlong>(stats.notifications),
+            static_cast<jlong>(stats.duplicates),
     };
-    jlongArray result = env->NewLongArray(4);
+    jlongArray result = env->NewLongArray(7);
     if (result != nullptr) {
-        env->SetLongArrayRegion(result, 0, 4, values);
+        env->SetLongArrayRegion(result, 0, 7, values);
     }
     return result;
-}
-
-extern "C" JNIEXPORT void JNICALL Java_tel_schich_libdatachannel_RawUdpMuxListener_replayNative(
-        JNIEnv* env, jclass clazz, const jlong handle, jbyteArray packet, jstring source_address,
-        const jint source_port) {
-    const auto mux = reinterpret_cast<raw_mux*>(static_cast<intptr_t>(handle));
-    const jsize size = env->GetArrayLength(packet);
-    if (size < 20 || size > 2048) {
-        throw_native_exception(env, "Invalid deferred STUN size");
-        return;
-    }
-    unsigned char data[2048];
-    env->GetByteArrayRegion(packet, 0, size, reinterpret_cast<jbyte*>(data));
-    if (env->ExceptionCheck()) {
-        return;
-    }
-    const char* source = env->GetStringUTFChars(source_address, nullptr);
-    if (source == nullptr) {
-        return;
-    }
-    const int result = juice_mux_replay(mux->address, mux->port, source, source_port, data, static_cast<size_t>(size));
-    env->ReleaseStringUTFChars(source_address, source);
-    if (result != 0) {
-        throw_native_exception(env, "Cannot queue deferred STUN request");
-    }
 }

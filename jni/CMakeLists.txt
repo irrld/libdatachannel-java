@@ -12,9 +12,10 @@ set(NO_TESTS ON CACHE BOOL "configure libdatachannel build")
 set(NO_EXAMPLES ON CACHE BOOL "configure libdatachannel build")
 # TODO remove after libdatachannel updates to libsrtp 2.8.0+
 set(ENABLE_WARNINGS_AS_ERRORS OFF CACHE BOOL "Disable warnings as errors for libsrtp" FORCE)
-add_subdirectory(libdatachannel)
+set(LIBDATACHANNEL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libdatachannel" CACHE PATH "libdatachannel source checkout")
+add_subdirectory(${LIBDATACHANNEL_SOURCE_DIR} libdatachannel)
 
-include_directories(libdatachannel/include libdatachannel/deps/libjuice/include generated)
+include_directories(${LIBDATACHANNEL_SOURCE_DIR}/include generated)
 include_directories(jdk)
 if(WIN32)
     include_directories(jdk/windows)
@@ -63,3 +64,6 @@ add_library(datachannel-java SHARED
         src/native_track.cpp
         src/callback.cpp)
 target_link_libraries(datachannel-java PRIVATE datachannel-static)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_options(datachannel-java PRIVATE -Wl,--no-undefined)
+endif()

@@ -58,9 +58,18 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* jvm, void* reserved) {
     jvm_unloading.store(false);
     JNIEnv* env = get_jni_env_from_jvm(jvm);
     module_OnLoad(env);
-    rtcInitLogger(RTC_LOG_VERBOSE, &logger_callback);
+    const auto level = static_cast<rtcLogLevel>(call_tel_schich_libdatachannel_LibDataChannel_initialNativeLogLevel(env));
+    if (env->ExceptionCheck()) {
+        return JNI_ERR;
+    }
+    rtcInitLogger(level, &logger_callback);
     rtcPreload();
     return JNI_VERSION;
+}
+
+extern "C" JNIEXPORT void JNICALL Java_tel_schich_libdatachannel_LibDataChannel_setLogLevelNative(
+        JNIEnv* env, jclass clazz, const jint level) {
+    rtcInitLogger(static_cast<rtcLogLevel>(level), &logger_callback);
 }
 
 JNIEXPORT void JNICALL JNI_OnUnload(JavaVM* jvm, void* reserved) {

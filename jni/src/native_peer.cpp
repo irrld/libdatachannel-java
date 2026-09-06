@@ -4,6 +4,7 @@
 #include <jni-java-to-c.h>
 #include <jni.h>
 #include <rtc/rtc.h>
+#include <cstdint>
 #include <cstdlib>
 
 void RTC_API handle_local_description(int pc, const char* sdp, const char* type, void* ptr) {
@@ -48,6 +49,14 @@ void RTC_API handle_track(int pc, const int trackHandle, void* ptr) {
 }
 SET_CALLBACK_INTERFACE_IMPL(rtcSetTrackCallback, handle_track)
 
+struct incoming_peer {
+    int listener;
+    uint64_t request_id;
+    const char* remote_sdp;
+    rtcLocalDescriptionInit local_description;
+    int pc;
+};
+
 static jint create_peer(JNIEnv* env, jclass clazz,
                         jobjectArray iceServers, jstring proxyServer,
                         jstring bindAddress, const jint certificateType,
@@ -58,7 +67,8 @@ static jint create_peer(JNIEnv* env, jclass clazz,
                         const jboolean forceMediaTransport,
                         const jshort portRangeBegin, const jshort portRangeEnd,
                         const jint mtu, const jint maxMessageSize,
-                        jstring certificateFile, jstring keyFile, jstring keyPassword) {
+                        jstring certificateFile, jstring keyFile, jstring keyPassword,
+                        incoming_peer* incoming) {
     // Field by field so that added configuration fields keep compiling.
     rtcConfiguration config = {};
     config.certificateType = static_cast<rtcCertificateType>(certificateType);
@@ -119,7 +129,12 @@ static jint create_peer(JNIEnv* env, jclass clazz,
 
     jint result = EXCEPTION_THROWN;
     if (!env->ExceptionCheck()) {
-        result = static_cast<jint>(rtcCreatePeerConnection(&config));
+        if (incoming != nullptr) {
+            result = rtcPrepareIceUdpMuxPeer(incoming->listener, incoming->request_id, &config, incoming->remote_sdp,
+                                             &incoming->local_description, &incoming->pc);
+        } else {
+            result = static_cast<jint>(rtcCreatePeerConnection(&config));
+        }
     }
 
     if (pass != nullptr) {
@@ -165,7 +180,7 @@ Java_tel_schich_libdatachannel_LibDataChannelNative_rtcCreatePeerConnection(JNIE
                                                                             const jint mtu, const jint maxMessageSize) {
     return create_peer(env, clazz, iceServers, proxyServer, bindAddress, certificateType, iceTransportPolicy,
                        enableIceTcp, enableIceUdpMux, disableAutoNegotiation, forceMediaTransport, portRangeBegin,
-                       portRangeEnd, mtu, maxMessageSize, nullptr, nullptr, nullptr);
+                       portRangeEnd, mtu, maxMessageSize, nullptr, nullptr, nullptr, nullptr);
 }
 
 JNIEXPORT jint JNICALL
@@ -183,7 +198,7 @@ Java_tel_schich_libdatachannel_LibDataChannelNative_rtcCreatePeerConnectionWithI
                                                                             jstring keyPassword) {
     return create_peer(env, clazz, iceServers, proxyServer, bindAddress, certificateType, iceTransportPolicy,
                        enableIceTcp, enableIceUdpMux, disableAutoNegotiation, forceMediaTransport, portRangeBegin,
-                       portRangeEnd, mtu, maxMessageSize, certificateFile, keyFile, keyPassword);
+                       portRangeEnd, mtu, maxMessageSize, certificateFile, keyFile, keyPassword, nullptr);
 }
 
 JNIEXPORT jint JNICALL
@@ -376,4 +391,46 @@ Java_tel_schich_libdatachannel_LibDataChannelNative_rtcClosePeerConnectionAndWai
                                                                                   const jint peerHandle,
                                                                                   const jint timeoutMs) {
     return rtcClosePeerConnectionAndWait(peerHandle, timeoutMs);
+}
+
+extern "C" JNIEXPORT jintArray JNICALL Java_tel_schich_libdatachannel_IceUdpMuxListener_prepareConfiguredNative(
+        JNIEnv* env, jclass clazz, const jint listener, const jlong requestId,
+        jobjectArray iceServers, jstring proxyServer, jstring bindAddress, const jint certificateType,
+        const jint iceTransportPolicy, const jboolean enableIceTcp, const jboolean enableIceUdpMux,
+        const jboolean disableAutoNegotiation, const jboolean forceMediaTransport,
+        const jshort portRangeBegin, const jshort portRangeEnd, const jint mtu, const jint maxMessageSize,
+        jstring certificateFile, jstring keyFile, jstring keyPassword,
+        jstring remoteDescription, jstring localUfrag, jstring localPassword) {
+    // Allocate the result before creating anything: ownership must never be lost on allocation failure.
+    jintArray result = env->NewIntArray(2);
+    if (result == nullptr) {
+        return nullptr;
+    }
+    incoming_peer incoming = {};
+    incoming.listener = listener;
+    incoming.request_id = static_cast<uint64_t>(requestId);
+    incoming.pc = -1;
+    incoming.remote_sdp = env->GetStringUTFChars(remoteDescription, nullptr);
+    incoming.local_description.iceUfrag = !env->ExceptionCheck() ? env->GetStringUTFChars(localUfrag, nullptr) : nullptr;
+    incoming.local_description.icePwd = !env->ExceptionCheck() ? env->GetStringUTFChars(localPassword, nullptr) : nullptr;
+    jint status = EXCEPTION_THROWN;
+    if (!env->ExceptionCheck()) {
+        status = create_peer(env, clazz, iceServers, proxyServer, bindAddress, certificateType, iceTransportPolicy,
+                             enableIceTcp, enableIceUdpMux, disableAutoNegotiation, forceMediaTransport, portRangeBegin,
+                             portRangeEnd, mtu, maxMessageSize, certificateFile, keyFile, keyPassword, &incoming);
+    }
+    if (incoming.remote_sdp != nullptr) {
+        env->ReleaseStringUTFChars(remoteDescription, incoming.remote_sdp);
+    }
+    if (incoming.local_description.iceUfrag != nullptr) {
+        env->ReleaseStringUTFChars(localUfrag, incoming.local_description.iceUfrag);
+    }
+    if (incoming.local_description.icePwd != nullptr) {
+        env->ReleaseStringUTFChars(localPassword, incoming.local_description.icePwd);
+    }
+    if (!env->ExceptionCheck()) {
+        const jint values[] = {status, incoming.pc};
+        env->SetIntArrayRegion(result, 0, 2, values);
+    }
+    return result;
 }
