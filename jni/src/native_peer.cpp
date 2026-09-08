@@ -383,7 +383,55 @@ JNIEXPORT jint JNICALL Java_tel_schich_libdatachannel_LibDataChannelNative_rtcSe
 
 JNIEXPORT jlong JNICALL Java_tel_schich_libdatachannel_LibDataChannelNative_rtcGetPeerConnectionCreationAttempts(
         JNIEnv* env, jclass clazz) {
+#ifdef RTC_ENABLE_TEST_DIAGNOSTICS
     return static_cast<jlong>(rtcGetPeerConnectionCreationAttempts());
+#else
+    throw_native_exception(env, "Native construction diagnostics require a test build");
+    return -1;
+#endif
+}
+
+struct peer_close_observer {
+    jobject peer;
+    jmethodID completed;
+};
+
+static void RTC_API peer_close_completed(int pc, void* ptr) {
+    const auto observer = static_cast<peer_close_observer*>(ptr);
+    JNIEnv* env = get_jni_env();
+    if (env != nullptr) {
+        env->CallVoidMethod(observer->peer, observer->completed);
+        if (env->ExceptionCheck()) {
+            env->ExceptionClear();
+        }
+        env->DeleteGlobalRef(observer->peer);
+    }
+    free(observer);
+}
+
+extern "C" JNIEXPORT jint JNICALL Java_tel_schich_libdatachannel_PeerConnection_closeAsyncNative(
+        JNIEnv* env, jclass clazz, const jint pc, jobject peer) {
+    const auto observer = static_cast<peer_close_observer*>(calloc(1, sizeof(peer_close_observer)));
+    if (observer == nullptr) {
+        return RTC_ERR_FAILURE;
+    }
+    observer->peer = env->NewGlobalRef(peer);
+    jclass type = observer->peer != nullptr ? env->GetObjectClass(peer) : nullptr;
+    observer->completed = type != nullptr ? env->GetMethodID(type, "nativeCloseCompleted", "()V") : nullptr;
+    if (type != nullptr) {
+        env->DeleteLocalRef(type);
+    }
+    int result = RTC_ERR_FAILURE;
+    if (observer->peer != nullptr && observer->completed != nullptr && !env->ExceptionCheck()) {
+        result = rtcClosePeerConnectionAsync(pc, peer_close_completed, observer);
+    }
+    if (result != RTC_ERR_SUCCESS) {
+        if (observer->peer != nullptr) {
+            env->DeleteGlobalRef(observer->peer);
+        }
+        free(observer);
+    }
+    return result;
 }
 
 JNIEXPORT jint JNICALL

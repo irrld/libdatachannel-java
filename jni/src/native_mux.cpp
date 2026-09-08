@@ -99,6 +99,11 @@ extern "C" JNIEXPORT jint JNICALL Java_tel_schich_libdatachannel_IceUdpMuxListen
     return rtcRejectIceUdpMuxRequest(listener, static_cast<uint64_t>(requestId));
 }
 
+extern "C" JNIEXPORT jint JNICALL Java_tel_schich_libdatachannel_IceUdpMuxListener_attachNative(
+        JNIEnv* env, jclass clazz, const jint listener, const jlong requestId, const jint peer) {
+    return rtcAttachIceUdpMuxPeer(listener, static_cast<uint64_t>(requestId), peer);
+}
+
 extern "C" JNIEXPORT jlongArray JNICALL Java_tel_schich_libdatachannel_IceUdpMuxListener_statsNative(
         JNIEnv* env, jclass clazz, const jint listener) {
     rtcIceUdpMuxListenerStats stats;
