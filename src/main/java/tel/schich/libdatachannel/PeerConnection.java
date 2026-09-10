@@ -198,7 +198,7 @@ public class PeerConnection implements Closeable {
     }
 
     /** Diagnostic count at native peer construction, including failed attempts. */
-    static long nativeCreationAttempts() { return LibDataChannelNative.rtcGetPeerConnectionCreationAttempts(); }
+    public static long nativeCreationAttempts() { return LibDataChannelNative.rtcGetPeerConnectionCreationAttempts(); }
 
     public static PeerConnection createPeer(PeerConnectionConfiguration config) {
         return createPeer(config, Runnable::run);
