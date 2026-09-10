@@ -22,7 +22,7 @@ tasks.test {
 tasks.compileJava {
     options.release = 11
     javaCompiler = javaToolchains.compilerFor {
-        languageVersion = JavaLanguageVersion.of(providers.gradleProperty("libdatachannel.java-compiler-version").getOrElse("11").toInt())
+        languageVersion = JavaLanguageVersion.of(11)
     }
 }
 
@@ -53,12 +53,13 @@ publishing {
     repositories {
         maven {
             name = Constants.SNAPSHOTS_REPO
-            url = uri("https://central.sonatype.com/repository/maven-snapshots/")
+            url = uri("https://repo.opencollab.dev/maven-snapshots/")
             credentials(PasswordCredentials::class)
         }
         maven {
             name = Constants.RELEASES_REPO
-            url = layout.buildDirectory.dir("repo").get().asFile.toURI()
+            url = uri("https://repo.opencollab.dev/maven-releases/")
+            credentials(PasswordCredentials::class)
         }
     }
 

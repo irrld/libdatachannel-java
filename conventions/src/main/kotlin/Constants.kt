@@ -5,8 +5,8 @@ object Constants {
     const val WINDOWS_CLASSIFIER_PREFIX = "windows-"
     const val MACOS_CLASSIFIER_PREFIX = "macos-"
 
-    const val SNAPSHOTS_REPO = "mavenCentralSnapshots"
-    const val RELEASES_REPO = "mavenLocal"
+    const val SNAPSHOTS_REPO = "openCollabSnapshots"
+    const val RELEASES_REPO = "openCollabReleases"
 
     val CI = System.getenv("CI") != null
 }

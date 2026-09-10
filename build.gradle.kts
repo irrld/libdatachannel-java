@@ -1,4 +1,3 @@
-import io.github.danielliu1123.deployer.PublishingType
 import org.gradle.kotlin.dsl.support.serviceOf
 import tel.schich.dockcross.execute.DockerRunner
 import tel.schich.dockcross.execute.NonContainerRunner
@@ -11,7 +10,6 @@ import java.nio.file.Paths
 plugins {
     id("tel.schich.libdatachannel.convention.common")
     alias(libs.plugins.dockcross)
-    alias(libs.plugins.mavenDeployer)
 }
 
 tasks.wrapper {
@@ -217,7 +215,7 @@ fun macosTarget(classifier: String, arch: String) = BuildTarget(
     env = mapOf("OSXCROSS_HOST" to "$arch-apple-darwin23.6"),
 )
 
-val targets = listOf(
+val allTargets = listOf(
     BuildTarget(
         image = "linux-x64",
         family = "linux",
@@ -250,6 +248,19 @@ val targets = listOf(
     macosTarget(classifier = "arm64", arch = "aarch64"),
     macosTarget(classifier = "x86_64", arch = "x86_64"),
 )
+
+// Optional comma separated list of target classifiers, defaults to all targets.
+val targets = providers.gradleProperty("libdatachannel.targets")
+    .map { spec ->
+        val requested = spec.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        val known = allTargets.map { it.classifier }.toSet()
+        val unknown = requested - known
+        if (unknown.isNotEmpty()) {
+            throw GradleException("Unknown targets: ${unknown.sorted().joinToString()}, known targets: ${known.sorted().joinToString()}")
+        }
+        allTargets.filter { it.classifier in requested }
+    }
+    .getOrElse(allTargets)
 
 val packageNativeAll = tasks.register<DefaultTask>("packageNativeAll") {
     group = nativeGroup
@@ -374,58 +385,20 @@ publishing.publications.withType<MavenPublication>().configureEach {
     }
 }
 
-private fun Project.getSecret(name: String): Provider<String> = provider {
-    val env = System.getenv(name)
-        ?.ifBlank { null }
-    if (env != null) {
-        return@provider env
-    }
-
-    val propName = name.split("_")
-        .map { it.lowercase() }
-        .joinToString(separator = "") { word ->
-            word.replaceFirstChar { it.uppercase() }
-        }
-        .replaceFirstChar { it.lowercase() }
-
-    property(propName) as String
-}
-
-deploy {
-    // dirs to upload, they will all be packaged into one bundle
-    dirs = provider {
-        allprojects
-            .map { it.layout.buildDirectory.dir("repo").get().asFile }
-            .filter { it.exists() }
-            .toList()
-    }
-    username = project.getSecret("MAVEN_CENTRAL_PORTAL_USERNAME")
-    password = project.getSecret("MAVEN_CENTRAL_PORTAL_PASSWORD")
-    publishingType = if (Constants.CI) {
-        PublishingType.WAIT_FOR_PUBLISHED
-    } else {
-        PublishingType.USER_MANAGED
-    }
-}
-
-tasks.deploy {
-    for (project in allprojects) {
-        val publishTasks = project.tasks
-            .withType<PublishToMavenRepository>()
-        mustRunAfter(publishTasks)
-    }
-}
-
-val mavenCentralDeploy = tasks.register<DefaultTask>("mavenCentralDeploy") {
+val openCollabDeploy = tasks.register<DefaultTask>("openCollabDeploy") {
     group = "publishing"
 
     val repo = if (isSnapshot) {
         Constants.SNAPSHOTS_REPO
     } else {
-        dependsOn(tasks.deploy)
         Constants.RELEASES_REPO
     }
+    val hasAndroidTargets = targets.any { it.family == "android" }
     for (project in allprojects) {
+        // the android module bundles the android natives, publishing it without them makes no sense
+        if (!hasAndroidTargets && project.name.endsWith("-android")) {
+            continue
+        }
         val publishTasks = project.tasks
             .withType<PublishToMavenRepository>()
             .matching { it.repository.name == repo }
@@ -433,11 +406,7 @@ val mavenCentralDeploy = tasks.register<DefaultTask>("mavenCentralDeploy") {
     }
 
     doFirst {
-        if (isSnapshot) {
-            logger.lifecycle("Snapshot deployment!")
-        } else {
-            logger.lifecycle("Release deployment!")
-        }
+        logger.lifecycle("Deploying $version to $repo!")
     }
 }
 
@@ -450,7 +419,7 @@ val githubActions = tasks.register<DefaultTask>("githubActions") {
 
     if (System.getenv("GITHUB_REPOSITORY") == "pschichtel/libdatachannel-java" && ref != null && deployRefPattern.matches(ref)) {
         logger.lifecycle("Job in $ref will deploy!")
-        dependsOn(mavenCentralDeploy)
+        dependsOn(openCollabDeploy)
     } else {
         logger.lifecycle("Job will only build!")
         dependsOn(tasks.assemble)
