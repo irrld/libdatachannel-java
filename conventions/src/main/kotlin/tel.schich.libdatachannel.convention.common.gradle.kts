@@ -71,7 +71,7 @@ publishing {
             pom {
                 name = artifactId
                 description = project.description
-                url = "https://github.com/pschichtel/libdatachannel-java"
+                url = "https://github.com/opencollab-incubator/libdatachannel-java"
                 licenses {
                     license {
                         name = "MIT"
@@ -89,9 +89,9 @@ publishing {
                     }
                 }
                 scm {
-                    url.set("https://github.com/pschichtel/libdatachannel-java")
-                    connection.set("scm:git:https://github.com/pschichtel/libdatachannel-java")
-                    developerConnection.set("scm:git:git@github.com:pschichtel/libdatachannel-java")
+                    url.set("https://github.com/opencollab-incubator/libdatachannel-java")
+                    connection.set("scm:git:https://github.com/opencollab-incubator/libdatachannel-java")
+                    developerConnection.set("scm:git:git@github.com:opencollab-incubator/libdatachannel-java")
                 }
             }
         }

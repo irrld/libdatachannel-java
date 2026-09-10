@@ -417,7 +417,7 @@ val githubActions = tasks.register<DefaultTask>("githubActions") {
 
     dependsOn(tasks.check)
 
-    if (System.getenv("GITHUB_REPOSITORY") == "pschichtel/libdatachannel-java" && ref != null && deployRefPattern.matches(ref)) {
+    if (System.getenv("GITHUB_REPOSITORY") == "opencollab-incubator/libdatachannel-java" && ref != null && deployRefPattern.matches(ref)) {
         logger.lifecycle("Job in $ref will deploy!")
         dependsOn(openCollabDeploy)
     } else {
