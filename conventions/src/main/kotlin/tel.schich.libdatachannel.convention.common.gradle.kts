@@ -4,7 +4,7 @@ plugins {
     `maven-publish`
 }
 
-group = "org.cloudburstmc"
+group = "dev.opencollab"
 
 java {
     withSourcesJar()

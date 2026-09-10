@@ -17,7 +17,7 @@ version="${native_version}.0-dev.${revision}"
 python3 - "$output" "$version" "$revision" <<'PY'
 import hashlib, json, pathlib, subprocess, sys, zipfile
 output, version, revision = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
-root = output / 'org/cloudburstmc/libdatachannel-java' / version
+root = output / 'dev/opencollab/libdatachannel-java' / version
 root.mkdir(parents=True, exist_ok=True)
 def add(jar, path, name):
     info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
@@ -32,14 +32,14 @@ with zipfile.ZipFile(root / f'libdatachannel-java-{version}.jar', 'w') as jar:
 with zipfile.ZipFile(root / f'libdatachannel-java-{version}-x86_64.jar', 'w') as jar:
     add(jar, pathlib.Path('build/native-probe/libdatachannel-java.so'), 'native/libdatachannel-java.so')
 (root / f'libdatachannel-java-{version}.pom').write_text(f'''<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>
-<groupId>org.cloudburstmc</groupId><artifactId>libdatachannel-java</artifactId><version>{version}</version>
+<groupId>dev.opencollab</groupId><artifactId>libdatachannel-java</artifactId><version>{version}</version>
 <licenses><license><name>Mozilla Public License 2.0</name><url>https://www.mozilla.org/MPL/2.0/</url></license></licenses>
 <dependencies><dependency><groupId>org.slf4j</groupId><artifactId>slf4j-api</artifactId><version>2.0.17</version></dependency></dependencies>
 </project>\n''')
 def head(path):
     return subprocess.check_output(['git', '-C', path, 'rev-parse', 'HEAD'], text=True).strip()
 provenance = {
-    'coordinates': f'org.cloudburstmc:libdatachannel-java:{version}',
+    'coordinates': f'dev.opencollab:libdatachannel-java:{version}',
     'bindingRevision': revision,
     'libdatachannelRevision': head('jni/libdatachannel'),
     'libjuiceRevision': head('jni/libdatachannel/deps/libjuice'),

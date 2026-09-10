@@ -8,7 +8,7 @@ repositories {
 }
 
 dependencies {
-    implementation("org.cloudburstmc:libdatachannel-java-arch-detect")
+    implementation("dev.opencollab:libdatachannel-java-arch-detect")
     implementation("ch.qos.logback:logback-classic:1.5.34")
 }
 
