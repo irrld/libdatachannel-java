@@ -4,7 +4,7 @@ plugins {
     `maven-publish`
 }
 
-group = "tel.schich"
+group = "org.cloudburstmc"
 
 java {
     withSourcesJar()

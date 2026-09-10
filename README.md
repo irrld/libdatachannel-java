@@ -7,13 +7,13 @@ Java wrappers for [libdatachannel](https://github.com/paullouisageneau/libdatach
 
 #### Gradle (build.gradle.kts)
 ```kotlin
-implementation("tel.schich:libdatachannel-java:0.24.1.1")
+implementation("org.cloudburstmc:libdatachannel-java:0.24.1.1")
 ```
 
 #### Maven (pom.xml)
 ```xml
 <dependency>
-    <groupId>tel.schich</groupId>
+    <groupId>org.cloudburstmc</groupId>
     <artifactId>libdatachannel-java</artifactId>
     <version>0.24.1.1</version>
 </dependency>
