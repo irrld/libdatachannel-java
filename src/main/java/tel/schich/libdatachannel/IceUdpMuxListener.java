@@ -406,7 +406,7 @@ public final class IceUdpMuxListener implements AutoCloseable {
     private static native int[] prepareConfiguredNative(int handle, long requestId,
         String @Nullable [] iceServers, @Nullable String proxyServer, @Nullable String bindAddress,
         int certificateType, int iceTransportPolicy, boolean enableIceTcp, boolean enableIceUdpMux,
-        boolean disableAutoNegotiation, boolean forceMediaTransport, short portRangeBegin, short portRangeEnd,
+        boolean disableAutoNegotiation, boolean forceMediaTransport, int portRangeBegin, int portRangeEnd,
         int mtu, int maxMessageSize, @Nullable String certificate, @Nullable String key, @Nullable String keyPassword,
         String remoteDescription, String localUfrag, String localPassword);
     private static native int acceptNative(int handle, long requestId, int peer);

@@ -24,8 +24,8 @@ public class PeerConnectionConfiguration {
             false,
             false,
             false,
-            (short) 0,
-            (short) 0,
+            0,
+            0,
             AUTO_MTU,
             0);
 
@@ -40,12 +40,12 @@ public class PeerConnectionConfiguration {
     final boolean enableIceUdpMux;
     final boolean disableAutoNegotiation;
     final boolean forceMediaTransport;
-    final short portRangeBegin;
-    final short portRangeEnd;
+    final int portRangeBegin;
+    final int portRangeEnd;
     final int mtu;
     final int maxMessageSize;
 
-    private PeerConnectionConfiguration(List<URI> iceServers, @Nullable URI proxyServer, @Nullable InetAddress bindAddress, CertificateType certificateType, IceTransportPolicy iceTransportPolicy, boolean enableIceTcp, boolean enableIceUdpMux, boolean disableAutoNegotiation, boolean forceMediaTransport, short portRangeBegin, short portRangeEnd, int mtu, int maxMessageSize) {
+    private PeerConnectionConfiguration(List<URI> iceServers, @Nullable URI proxyServer, @Nullable InetAddress bindAddress, CertificateType certificateType, IceTransportPolicy iceTransportPolicy, boolean enableIceTcp, boolean enableIceUdpMux, boolean disableAutoNegotiation, boolean forceMediaTransport, int portRangeBegin, int portRangeEnd, int mtu, int maxMessageSize) {
         this.iceServers = iceServers;
         this.proxyServer = proxyServer;
         this.bindAddress = bindAddress;
@@ -203,31 +203,31 @@ public class PeerConnectionConfiguration {
 
 
     /**
-     * (optional): first port (included) of the allowed local port range (0 if unused)
+     * (optional): first port (included) of the allowed local port range, 1 to 65535 (0 if unused)
      *
      * @param portRangeBegin the beginning of the port range
      * @return fluent interface
      */
-    public PeerConnectionConfiguration withPortRangeBegin(short portRangeBegin) {
+    public PeerConnectionConfiguration withPortRangeBegin(int portRangeBegin) {
         return new PeerConnectionConfiguration(iceServers, proxyServer, bindAddress, certificateType, iceTransportPolicy, enableIceTcp, enableIceUdpMux, disableAutoNegotiation, forceMediaTransport, portRangeBegin, portRangeEnd, mtu, maxMessageSize);
     }
 
-    public short portRangeBegin() {
+    public int portRangeBegin() {
         return portRangeBegin;
     }
 
 
     /**
-     * (optional): last port (included) of the allowed local port (0 if unused)
+     * (optional): last port (included) of the allowed local port range, 1 to 65535 (0 if unused)
      *
      * @param portRangeEnd the inclusive end of the port range
      * @return fluent interface
      */
-    public PeerConnectionConfiguration withPortRangeEnd(short portRangeEnd) {
+    public PeerConnectionConfiguration withPortRangeEnd(int portRangeEnd) {
         return new PeerConnectionConfiguration(iceServers, proxyServer, bindAddress, certificateType, iceTransportPolicy, enableIceTcp, enableIceUdpMux, disableAutoNegotiation, forceMediaTransport, portRangeBegin, portRangeEnd, mtu, maxMessageSize);
     }
 
-    public short portRangeEnd() {
+    public int portRangeEnd() {
         return portRangeEnd;
     }
 

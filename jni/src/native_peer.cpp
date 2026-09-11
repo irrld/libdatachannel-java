@@ -65,7 +65,7 @@ static jint create_peer(JNIEnv* env, jclass clazz,
                         const jboolean enableIceUdpMux,
                         const jboolean disableAutoNegotiation,
                         const jboolean forceMediaTransport,
-                        const jshort portRangeBegin, const jshort portRangeEnd,
+                        const jint portRangeBegin, const jint portRangeEnd,
                         const jint mtu, const jint maxMessageSize,
                         jstring certificateFile, jstring keyFile, jstring keyPassword,
                         incoming_peer* incoming) {
@@ -77,8 +77,8 @@ static jint create_peer(JNIEnv* env, jclass clazz,
     config.enableIceUdpMux = static_cast<bool>(enableIceUdpMux);
     config.disableAutoNegotiation = static_cast<bool>(disableAutoNegotiation);
     config.forceMediaTransport = static_cast<bool>(forceMediaTransport);
-    config.portRangeBegin = static_cast<uint16_t>(portRangeBegin);
-    config.portRangeEnd = static_cast<uint16_t>(portRangeEnd);
+    config.portRangeBegin = portRangeBegin;
+    config.portRangeEnd = portRangeEnd;
     config.mtu = mtu;
     config.maxMessageSize = maxMessageSize;
 
@@ -176,7 +176,7 @@ Java_tel_schich_libdatachannel_LibDataChannelNative_rtcCreatePeerConnection(JNIE
                                                                             const jboolean enableIceUdpMux,
                                                                             const jboolean disableAutoNegotiation,
                                                                             const jboolean forceMediaTransport,
-                                                                            const jshort portRangeBegin, const jshort portRangeEnd,
+                                                                            const jint portRangeBegin, const jint portRangeEnd,
                                                                             const jint mtu, const jint maxMessageSize) {
     return create_peer(env, clazz, iceServers, proxyServer, bindAddress, certificateType, iceTransportPolicy,
                        enableIceTcp, enableIceUdpMux, disableAutoNegotiation, forceMediaTransport, portRangeBegin,
@@ -192,7 +192,7 @@ Java_tel_schich_libdatachannel_LibDataChannelNative_rtcCreatePeerConnectionWithI
                                                                             const jboolean enableIceUdpMux,
                                                                             const jboolean disableAutoNegotiation,
                                                                             const jboolean forceMediaTransport,
-                                                                            const jshort portRangeBegin, const jshort portRangeEnd,
+                                                                            const jint portRangeBegin, const jint portRangeEnd,
                                                                             const jint mtu, const jint maxMessageSize,
                                                                             jstring certificateFile, jstring keyFile,
                                                                             jstring keyPassword) {
@@ -451,7 +451,7 @@ extern "C" JNIEXPORT jintArray JNICALL Java_tel_schich_libdatachannel_IceUdpMuxL
         jobjectArray iceServers, jstring proxyServer, jstring bindAddress, const jint certificateType,
         const jint iceTransportPolicy, const jboolean enableIceTcp, const jboolean enableIceUdpMux,
         const jboolean disableAutoNegotiation, const jboolean forceMediaTransport,
-        const jshort portRangeBegin, const jshort portRangeEnd, const jint mtu, const jint maxMessageSize,
+        const jint portRangeBegin, const jint portRangeEnd, const jint mtu, const jint maxMessageSize,
         jstring certificateFile, jstring keyFile, jstring keyPassword,
         jstring remoteDescription, jstring localUfrag, jstring localPassword) {
     // Allocate the result before creating anything: ownership must never be lost on allocation failure.
