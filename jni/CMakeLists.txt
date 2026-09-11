@@ -67,3 +67,15 @@ target_link_libraries(datachannel-java PRIVATE datachannel-static)
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_options(datachannel-java PRIVATE -Wl,--no-undefined)
 endif()
+# Debug info is several times the size of the code itself and is of no use in a shipped binary.
+# The exported JNI symbols live in the dynamic symbol table, which stripping leaves alone.
+if(CMAKE_STRIP AND (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel"))
+    if(APPLE)
+        set(STRIP_ARGUMENTS -x)
+    else()
+        set(STRIP_ARGUMENTS --strip-unneeded)
+    endif()
+    add_custom_command(TARGET datachannel-java POST_BUILD
+            COMMAND ${CMAKE_STRIP} ${STRIP_ARGUMENTS} $<TARGET_FILE:datachannel-java>
+            COMMENT "Stripping debug info from datachannel-java")
+endif()
