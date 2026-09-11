@@ -43,9 +43,11 @@ import java.io.Closeable;
 import java.lang.ref.Cleaner;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
@@ -472,6 +474,19 @@ public class PeerConnection implements Closeable {
      */
     public int remoteMaxMessageSize() {
         return rtcGetRemoteMaxMessageSize(peerHandle);
+    }
+
+    /**
+     * Retrieves the round trip time of the underlying SCTP association.
+     *
+     * @return the round trip time, empty until the association reports one
+     */
+    public Optional<Duration> rtt() {
+        final int millis = LibDataChannelNative.rtcGetRtt(peerHandle);
+        if (millis < 0) {
+            return Optional.empty();
+        }
+        return Optional.of(Duration.ofMillis(millis));
     }
 
     public void setAnswer(String sdp) {

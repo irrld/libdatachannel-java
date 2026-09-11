@@ -357,6 +357,11 @@ JNIEXPORT jint JNICALL Java_tel_schich_libdatachannel_LibDataChannelNative_setup
     return RTC_ERR_SUCCESS;
 }
 
+JNIEXPORT jint JNICALL Java_tel_schich_libdatachannel_LibDataChannelNative_rtcGetRtt(JNIEnv* env, jclass clazz,
+                                                                                     const jint peerHandle) {
+    return rtcGetRtt(peerHandle);
+}
+
 JNIEXPORT jint JNICALL Java_tel_schich_libdatachannel_LibDataChannelNative_rtcSetLocalDescriptionWithIce(
         JNIEnv* env, jclass clazz, const jint peer, jstring type, jstring ufrag, jstring password) {
     const char* c_type = type != nullptr ? env->GetStringUTFChars(type, nullptr) : nullptr;
