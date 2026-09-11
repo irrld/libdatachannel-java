@@ -63,6 +63,23 @@ version = providers.gradleProperty("libdatachannel.development-version").getOrEl
 val isSnapshot = version.toString().endsWith("-SNAPSHOT")
 description = "${project.name} is a binding to the libdatachannel that feels native to Java developers."
 
+fun gitRevision(vararg command: String): String = providers.exec {
+    commandLine(*command)
+    isIgnoreExitValue = true
+}.standardOutput.asText.map { it.trim() }.getOrElse("").ifEmpty { "unknown" }
+
+// Recorded in the jar so consumers can rebuild exactly this chain, for example to get a native
+// library with the test diagnostics that release builds leave out.
+tasks.jar {
+    manifest.attributes(
+        "Implementation-Title" to project.name,
+        "Implementation-Version" to project.version.toString(),
+        "Source-Revision" to gitRevision("git", "rev-parse", "HEAD"),
+        "LibDataChannel-Revision" to gitRevision("git", "rev-parse", "HEAD:jni/libdatachannel"),
+        "LibJuice-Revision" to gitRevision("git", "-C", "jni/libdatachannel", "rev-parse", "HEAD:deps/libjuice"),
+    )
+}
+
 val currentVersion = tasks.register<DefaultTask>("currentVersion") {
     doLast {
         println(version)
