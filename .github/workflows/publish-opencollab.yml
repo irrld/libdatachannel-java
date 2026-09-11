@@ -43,10 +43,14 @@ jobs:
         cache: gradle
 
     - name: Install dependencies
+      env:
+        HOMEBREW_NO_AUTO_UPDATE: '1'
+        HOMEBREW_NO_INSTALL_CLEANUP: '1'
       run: |
-        brew update
-        brew uninstall cmake
-        brew install cmake conan
+        brew uninstall --ignore-dependencies cmake || true
+        brew install cmake
+        pipx install conan || brew install conan
+        cmake --version
         conan --version
 
     - name: Setup Gradle
@@ -64,9 +68,20 @@ jobs:
         retention-days: 30
         if-no-files-found: error
 
-  publish:
-    name: Publish to OpenCollab
-    needs: build-macos
+  build-cross:
+    name: Cross Compile Native Libraries
+    strategy:
+      matrix:
+        include:
+          - classifier: x86_64
+            task: compileNativeForX8664
+            library: libdatachannel-java.so
+          - classifier: aarch64
+            task: compileNativeForAarch64
+            library: libdatachannel-java.so
+          - classifier: windows-x86_64
+            task: compileNativeForWindowsX8664
+            library: libdatachannel-java.dll
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
@@ -85,30 +100,56 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v5
 
-    - name: Download macOS ARM64 artifacts
-      uses: actions/download-artifact@v7
-      with:
-        name: libdatachannel-macos-arm64
-        path: artifacts/macos-arm64/
-
-    - name: Download macOS x86_64 artifacts
-      uses: actions/download-artifact@v7
-      with:
-        name: libdatachannel-macos-x86_64
-        path: artifacts/macos-x86_64/
-
-    - name: Free up disk space
+    - name: Build native library
       run: |
-        sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
-        df -h /
+        ./gradlew ${{ matrix.task }} \
+          -Plibdatachannel.build-release-binaries=true \
+          -Plibdatachannel.targets=${{ matrix.classifier }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v6
+      with:
+        name: libdatachannel-${{ matrix.classifier }}
+        path: build/dockcross/${{ matrix.classifier }}/native/${{ matrix.library }}
+        retention-days: 30
+        if-no-files-found: error
+
+  publish:
+    name: Publish to OpenCollab
+    needs: [ build-macos, build-cross ]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-tags: 'true'
+        fetch-depth: '0'
+        submodules: recursive
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v5
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v5
+
+    - name: Download native libraries
+      uses: actions/download-artifact@v7
+      with:
+        pattern: libdatachannel-*
+        path: artifacts
 
     - name: Publish
       run: |
         ./gradlew --no-configuration-cache openCollabDeploy \
-          -Plibdatachannel.build-release-binaries=true \
           -Plibdatachannel.targets="$TARGETS" \
-          -Plibdatachannel.macos-arm64.prebuilt-path=artifacts/macos-arm64/libdatachannel-java.dylib \
-          -Plibdatachannel.macos-x86_64.prebuilt-path=artifacts/macos-x86_64/libdatachannel-java.dylib
+          -Plibdatachannel.x86_64.prebuilt-path=artifacts/libdatachannel-x86_64/libdatachannel-java.so \
+          -Plibdatachannel.aarch64.prebuilt-path=artifacts/libdatachannel-aarch64/libdatachannel-java.so \
+          -Plibdatachannel.windows-x86_64.prebuilt-path=artifacts/libdatachannel-windows-x86_64/libdatachannel-java.dll \
+          -Plibdatachannel.macos-arm64.prebuilt-path=artifacts/libdatachannel-macos-arm64/libdatachannel-java.dylib \
+          -Plibdatachannel.macos-x86_64.prebuilt-path=artifacts/libdatachannel-macos-x86_64/libdatachannel-java.dylib
       env:
         ORG_GRADLE_PROJECT_openCollabSnapshotsUsername: ${{ secrets.OPENCOLLAB_USERNAME }}
         ORG_GRADLE_PROJECT_openCollabSnapshotsPassword: ${{ secrets.OPENCOLLAB_PASSWORD }}
