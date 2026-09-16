@@ -317,33 +317,15 @@ JNIEXPORT jstring JNICALL Java_tel_schich_libdatachannel_LibDataChannelNative_rt
 }
 
 JNIEXPORT jobject JNICALL Java_tel_schich_libdatachannel_LibDataChannelNative_rtcGetSelectedCandidatePair(JNIEnv* env, jclass clazz, const jint peerHandle) {
-    constexpr int bufSize = 50;
-    const auto local = static_cast<char*>(malloc(bufSize));
-    if (local == nullptr) {
-        THROW_FAILED_MALLOC(env, local);
-        return nullptr;
-    }
-    const auto remote = static_cast<char*>(malloc(bufSize));
-    if (remote == nullptr) {
-        free(local);
-        THROW_FAILED_MALLOC(env, remote);
-        return nullptr;
-    }
-
-    const int result = rtcGetSelectedCandidatePair(peerHandle, local, bufSize, remote, bufSize);
+    // libjuice bounds a candidate line at JUICE_MAX_CANDIDATE_SDP_STRING_LEN, which is 256
+    char local[256];
+    char remote[256];
+    const int result = rtcGetSelectedCandidatePair(peerHandle, local, sizeof(local), remote, sizeof(remote));
     if (result < 0) {
-        free(local);
-        free(remote);
         WRAP_ERROR(env, result);
         return nullptr;
     }
-
-    jobject candidatePair = call_tel_schich_libdatachannel_CandidatePair_parse_cstr(env, local, remote);
-
-    free(local);
-    free(remote);
-
-    return candidatePair;
+    return call_tel_schich_libdatachannel_CandidatePair_parse_cstr(env, local, remote);
 }
 
 JNIEXPORT jint JNICALL Java_tel_schich_libdatachannel_LibDataChannelNative_setupPeerConnectionListener(JNIEnv* env, jclass clazz, const jint peerHandle, jobject listener) {
