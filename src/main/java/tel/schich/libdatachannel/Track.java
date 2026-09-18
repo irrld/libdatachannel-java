@@ -8,6 +8,7 @@ import static tel.schich.libdatachannel.LibDataChannelNative.rtcGetTrackDirectio
 import static tel.schich.libdatachannel.LibDataChannelNative.rtcGetTrackMid;
 import static tel.schich.libdatachannel.Util.mappedEnum;
 import static tel.schich.libdatachannel.Util.wrapError;
+import static tel.schich.libdatachannel.exception.LibDataChannelException.ERR_INVALID;
 
 import java.io.Closeable;
 import java.util.Map;
@@ -49,8 +50,9 @@ public class Track implements Closeable {
 
     @Override
     public void close() {
+        int result = rtcDeleteTrack(trackHandle);
+        if (result != ERR_INVALID) wrapError("rtcDeleteTrack", result);
         peer.dropTrackState(trackHandle);
-        wrapError("rtcDeleteTrack", rtcDeleteTrack(trackHandle));
     }
 
     @Override

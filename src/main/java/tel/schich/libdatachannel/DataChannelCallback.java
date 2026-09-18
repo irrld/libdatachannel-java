@@ -84,6 +84,11 @@ public interface DataChannelCallback {
      */
     @FunctionalInterface
     interface BinaryMessage {
+        /**
+         * The buffer is only valid during this callback; copy bytes that must outlive it.
+         * The default synchronous executor receives borrowed native storage. Custom executors
+         * receive an owned copy made before the native callback returns.
+         */
         void onBinary(DataChannel channel, ByteBuffer buffer);
     }
 

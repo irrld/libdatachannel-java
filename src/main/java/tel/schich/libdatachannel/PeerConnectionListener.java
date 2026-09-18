@@ -115,7 +115,8 @@ class PeerConnectionListener {
 
     @JNIAccess
     void onChannelBinaryMessage(int channelHandle, ByteBuffer message) {
-        invokeWithChannel(channelHandle, s -> s.onMessage, (h, ch) -> h.onBinary(ch, message));
+        ByteBuffer delivered = peer.callbacks.prepareBinaryMessage(message);
+        invokeWithChannel(channelHandle, s -> s.onMessage, (h, ch) -> h.onBinary(ch, delivered));
     }
 
     @JNIAccess

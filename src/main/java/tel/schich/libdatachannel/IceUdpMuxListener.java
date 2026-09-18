@@ -59,7 +59,7 @@ public final class IceUdpMuxListener implements AutoCloseable {
         final String remoteDescription, localPassword;
         final @Nullable Path certificate, key;
         final @Nullable String keyPassword;
-        final Executor peerExecutor;
+        final CallbackDispatcher callbacks;
         final Consumer<PeerConnection> initializer;
         final Instant expiresAt;
         final @Nullable PeerConnection existingPeer;
@@ -78,6 +78,13 @@ public final class IceUdpMuxListener implements AutoCloseable {
         public Acceptance(PeerConnectionConfiguration configuration, String remoteDescription, String localPassword,
                           @Nullable Path certificate, @Nullable Path key, @Nullable String keyPassword,
                           Executor peerExecutor, Consumer<PeerConnection> initializer, Instant expiresAt) {
+            this(configuration, remoteDescription, localPassword, certificate, key, keyPassword,
+                CallbackDispatcher.on(peerExecutor), initializer, expiresAt);
+        }
+
+        private Acceptance(PeerConnectionConfiguration configuration, String remoteDescription, String localPassword,
+                           @Nullable Path certificate, @Nullable Path key, @Nullable String keyPassword,
+                           CallbackDispatcher callbacks, Consumer<PeerConnection> initializer, Instant expiresAt) {
             this.configuration = Objects.requireNonNull(configuration, "configuration");
             this.remoteDescription = Objects.requireNonNull(remoteDescription, "remoteDescription");
             this.localPassword = Objects.requireNonNull(localPassword, "localPassword");
@@ -86,7 +93,7 @@ public final class IceUdpMuxListener implements AutoCloseable {
             this.certificate = certificate;
             this.key = key;
             this.keyPassword = keyPassword;
-            this.peerExecutor = Objects.requireNonNull(peerExecutor, "peerExecutor");
+            this.callbacks = callbacks;
             this.initializer = Objects.requireNonNull(initializer, "initializer");
             this.expiresAt = Objects.requireNonNull(expiresAt, "expiresAt");
             this.existingPeer = null;
@@ -97,7 +104,7 @@ public final class IceUdpMuxListener implements AutoCloseable {
             this.remoteDescription = this.localPassword = "";
             this.certificate = this.key = null;
             this.keyPassword = null;
-            this.peerExecutor = Runnable::run;
+            this.callbacks = CallbackDispatcher.direct();
             this.initializer = ignored -> {};
             this.expiresAt = Objects.requireNonNull(expiresAt, "expiresAt");
             this.existingPeer = Objects.requireNonNull(peer, "peer");
@@ -115,7 +122,7 @@ public final class IceUdpMuxListener implements AutoCloseable {
             private final String remoteDescription, localPassword;
             private PeerConnectionConfiguration configuration = PeerConnectionConfiguration.DEFAULT;
             private @Nullable DtlsIdentity identity;
-            private Executor peerExecutor = Runnable::run;
+            private CallbackDispatcher callbacks = CallbackDispatcher.direct();
             private Consumer<PeerConnection> initializer = ignored -> {};
             private Instant expiresAt = Instant.MAX;
 
@@ -125,13 +132,13 @@ public final class IceUdpMuxListener implements AutoCloseable {
             }
             public Builder configuration(PeerConnectionConfiguration value) { configuration = Objects.requireNonNull(value); return this; }
             public Builder identity(DtlsIdentity value) { identity = Objects.requireNonNull(value); return this; }
-            public Builder peerExecutor(Executor value) { peerExecutor = Objects.requireNonNull(value); return this; }
+            public Builder peerExecutor(Executor value) { callbacks = CallbackDispatcher.on(value); return this; }
             public Builder initialize(Consumer<PeerConnection> value) { initializer = Objects.requireNonNull(value); return this; }
             public Builder expiresAt(Instant value) { expiresAt = Objects.requireNonNull(value); return this; }
             public Acceptance build() {
                 return new Acceptance(configuration, remoteDescription, localPassword,
                     identity == null ? null : identity.certificate(), identity == null ? null : identity.privateKey(),
-                    identity == null ? null : identity.password(), peerExecutor, initializer, expiresAt);
+                    identity == null ? null : identity.password(), callbacks, initializer, expiresAt);
             }
         }
     }
@@ -301,7 +308,7 @@ public final class IceUdpMuxListener implements AutoCloseable {
                 settings.certificate == null ? null : settings.certificate.toString(),
                 settings.key == null ? null : settings.key.toString(), settings.keyPassword);
             preparedHandle = prepared[1];
-            if (preparedHandle >= 0) peer = PeerConnection.fromNative(preparedHandle, settings.peerExecutor);
+            if (preparedHandle >= 0) peer = PeerConnection.fromNative(preparedHandle, settings.callbacks);
             if (prepared[0] != 0) throw new IllegalStateException("Cannot prepare incoming ICE peer: " + prepared[0]);
             if (peer == null) throw new IllegalStateException("Native prepare returned no peer");
             peer.installNativeListener();
