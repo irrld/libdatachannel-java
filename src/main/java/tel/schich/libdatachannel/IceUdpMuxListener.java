@@ -366,6 +366,17 @@ public final class IceUdpMuxListener implements AutoCloseable {
         return new Statistics(statsNative(listenerId));
     }
 
+    /**
+     * Starts caller-owned STUN monitoring on this listener's exact native socket.
+     * No peer or data channel is created. Close the returned monitor separately;
+     * closing this listener leaves its monitor and already accepted peers owned
+     * by their callers.
+     */
+    public synchronized StunUdpMuxMonitor monitorStun(String serverHost, int serverPort) {
+        if (handle == 0) throw new IllegalStateException("ICE listener closed");
+        return StunUdpMuxMonitor.fromListener(listenerId, serverHost, serverPort);
+    }
+
     /** @deprecated Use {@link #statistics()} for named counters. */
     @Deprecated
     public synchronized long[] stats() {

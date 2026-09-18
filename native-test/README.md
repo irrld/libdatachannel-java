@@ -125,4 +125,32 @@ The probe suite additionally covers stalled application executors, same-peer tup
 attachment, forged attachment, reentrant listener close, scoped C++ preparation and
 asynchronous destruction completion.
 
+## Persistent STUN observations
+
+`IceUdpMuxListener.monitorStun(serverHost, serverPort)` creates an independently owned
+`StunUdpMuxMonitor` on the listener's UDP binding. Close each monitor explicitly;
+closing the listener leaves an existing monitor alive. A standalone constructor is
+also available. See [native STUN monitoring](../jni/libdatachannel/docs/stun-monitoring.md)
+for socket sharing, resolution and refresh behavior.
+
+`binding(index)` returns an immutable `StunBinding`, or an empty result while that
+server index is unavailable. A snapshot retains its mapping and counters after the
+monitor updates or closes. `lastSuccessAge()` is empty until a successful response;
+retained snapshots continue ageing using `System.nanoTime()`. A STUN response
+identifies a mapping; it does not establish reachability from other endpoints.
+
+`:nativeStunMonitorProbe` runs as part of `:nativeTransportProbe`. Local IPv4 and IPv6
+responders check the initial observation, shared socket ownership, snapshot age,
+server errors and concurrent read/close. It does not wait for periodic refreshes.
+
+## Selected ICE candidates
+
+`PeerConnection.selectedCandidatePair()` preserves the complete native candidate
+strings. `CandidatePair.localTransport()` and `remoteTransport()` expose the
+transport alongside the existing address and type accessors. Native reads use
+bounded dynamic buffers instead of the previous fixed 256-byte buffers.
+`:nativeCandidatePairBufferProbe` checks long candidates, growth between reads,
+size limits and unavailable pairs; `:nativeTransportProbe` checks a selected pair
+from an established connection.
+
 Detailed [contributor and source attribution](../docs/contribution-provenance.md) is retained separately.

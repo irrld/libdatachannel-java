@@ -381,6 +381,12 @@ public final class NativeTransportProbe {
             } else {
                 check(opened.await(10, TimeUnit.SECONDS) && messages.await(10, TimeUnit.SECONDS), "both channels deliver 402 messages");
                 check(failure.get() == null && callbackGuards.get() == 2 && channelMask.get() == 3, "callback and data-channel checks");
+                CandidatePair pair = client.selectedCandidatePair();
+                check(pair.remote().getPort() == PORT && pair.remote().getAddress().equals(LOOPBACK),
+                    "selected candidate reports the actual remote endpoint");
+                check("udp".equals(pair.localTransport()) && "udp".equals(pair.remoteTransport()) &&
+                    "host".equals(pair.remoteType()),
+                    "selected candidate metadata is retained");
                 long[] stats = mux.stats();
                 check(notifications.get() == 1 && stats[5] == 1 && stats[2] == 1 && stats[3] == 1 && stats[0] > 10,
                     "transport traffic stays native after one admission callback");

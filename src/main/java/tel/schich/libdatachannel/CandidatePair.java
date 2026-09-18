@@ -69,6 +69,22 @@ public class CandidatePair {
         return type(remote);
     }
 
+    /**
+     * @return the local candidate's transport in lower case, usually {@code udp} or {@code tcp}, or null if
+     * the line cannot be read
+     */
+    public String localTransport() {
+        return transport(local);
+    }
+
+    /**
+     * @return the remote candidate's transport in lower case, usually {@code udp} or {@code tcp}, or null if
+     * the line cannot be read
+     */
+    public String remoteTransport() {
+        return transport(remote);
+    }
+
     @JNIAccess
     static CandidatePair parse(String local, String remote) {
         return new CandidatePair(local, remote);
@@ -102,5 +118,10 @@ public class CandidatePair {
     static String type(String candidate) {
         String[] fields = candidate.split(" ");
         return fields.length >= 8 && "typ".equals(fields[6]) ? fields[7].toLowerCase(Locale.ROOT) : null;
+    }
+
+    static String transport(String candidate) {
+        String[] fields = candidate.split(" ");
+        return fields.length >= 8 && "typ".equals(fields[6]) ? fields[2].toLowerCase(Locale.ROOT) : null;
     }
 }
