@@ -74,16 +74,18 @@ class Platform {
     }
 
     private static String archPrefixForOs() {
-        if (getOS() == OS.WINDOWS) {
-            return "windows-";
+        switch (getOS()) {
+            case LINUX:
+                return "linux-";
+            case WINDOWS:
+                return "windows-";
+            case ANDROID:
+                return "android-";
+            case MACOS:
+                return "macos-";
+            default:
+                return "";
         }
-        if (getOS() == OS.ANDROID) {
-            return "android-";
-        }
-        if (getOS() == OS.MACOS) {
-            return "macos-";
-        }
-        return "";
     }
 
     private static String detectCpuArch() {
