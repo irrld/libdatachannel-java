@@ -14,7 +14,7 @@ permissions:
 
 env:
   # linux and windows are cross compiled on the publishing job, macOS is built on its own runners
-  TARGETS: x86_64,aarch64,windows-x86_64,macos-arm64,macos-x86_64
+  TARGETS: x86_64,aarch64,windows-x86_64,windows-aarch64,macos-arm64,macos-x86_64
 
 jobs:
   build-macos:
@@ -82,6 +82,9 @@ jobs:
           - classifier: windows-x86_64
             task: compileNativeForWindowsX8664
             library: libdatachannel-java.dll
+          - classifier: windows-aarch64
+            task: compileNativeForWindowsAarch64
+            library: libdatachannel-java.dll
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
@@ -148,6 +151,7 @@ jobs:
           -Plibdatachannel.x86_64.prebuilt-path=artifacts/libdatachannel-x86_64/libdatachannel-java.so \
           -Plibdatachannel.aarch64.prebuilt-path=artifacts/libdatachannel-aarch64/libdatachannel-java.so \
           -Plibdatachannel.windows-x86_64.prebuilt-path=artifacts/libdatachannel-windows-x86_64/libdatachannel-java.dll \
+          -Plibdatachannel.windows-aarch64.prebuilt-path=artifacts/libdatachannel-windows-aarch64/libdatachannel-java.dll \
           -Plibdatachannel.macos-arm64.prebuilt-path=artifacts/libdatachannel-macos-arm64/libdatachannel-java.dylib \
           -Plibdatachannel.macos-x86_64.prebuilt-path=artifacts/libdatachannel-macos-x86_64/libdatachannel-java.dylib
       env:

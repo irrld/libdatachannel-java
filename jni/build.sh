@@ -50,6 +50,14 @@ then
   cmake_options+=(
     "-DOSXCROSS_HOST=${OSXCROSS_HOST}"
   )
+elif [ "$TARGET_FAMILY" = 'windows' ] && "$CC" --version | grep -qi clang
+then
+  # llvm-mingw reports itself as clang, but conan only recognizes gcc as mingw, and OpenSSL keys
+  # its Windows entry points off the target name conan derives from that
+  compiler_major="$("$CC" -dumpversion | cut -d. -f1)"
+  cmake_options+=(
+    "-DCONAN_INSTALL_ARGS=--build=missing;-s:h;compiler=gcc;-s:h;compiler.version=${compiler_major};-s:h;compiler.libcxx=libstdc++11"
+  )
 fi
 
 cmake "$RELATIVE_PROJECT_PATH" "${cmake_options[@]}"

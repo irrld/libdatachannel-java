@@ -253,6 +253,15 @@ val allTargets = listOf(
         family = "windows",
         classifier = "${Constants.WINDOWS_CLASSIFIER_PREFIX}x86_64",
     ),
+    // dockcross has no static arm64 image, the llvm-mingw runtime is linked in by -static instead.
+    // Conan's mingw fallback for armv8 is the generic mingw-common, which carries no arm64
+    // assembly, so OpenSSL's own target for this architecture is picked explicitly.
+    BuildTarget(
+        image = "windows-arm64",
+        family = "windows",
+        classifier = "${Constants.WINDOWS_CLASSIFIER_PREFIX}aarch64",
+        env = mapOf("CONAN_OPENSSL_CONFIGURATION" to "mingwarm64"),
+    ),
 //    BuildTarget(
 //        image = "windows-static-x86",
 //        family = "windows",
