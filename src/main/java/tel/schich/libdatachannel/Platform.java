@@ -131,30 +131,33 @@ class Platform {
             return;
         }
 
-        String explicitLibraryClassPath = System.getProperty(classPathPropertyNameForLibrary(name));
-        final String libName = libraryFilename(name);
-        if (explicitLibraryClassPath != null) {
-            LOGGER.trace("Loading native library {} from explicit classpath at {}", name, explicitLibraryClassPath);
-            try {
-                final Path tempDirectory = Files.createTempDirectory(name + "-");
-                final Path libPath = tempDirectory.resolve(libName);
-                loadFromClassPath(name, base, explicitLibraryClassPath, libPath);
-                return;
-            } catch (IOException e) {
-                throw new LinkageError("Unable to load native library " + name + "!", e);
-            }
-        }
-
-        final String sourceLibPath = LIB_PREFIX + "/" + libName;
+        final String sourceLibPath = classPathLocation(name, base, detectArch());
         LOGGER.trace("Loading native library {} from {}", name, sourceLibPath);
-
         try {
             final Path tempDirectory = Files.createTempDirectory(name + "-");
-            final Path libPath = tempDirectory.resolve(libName);
+            final Path libPath = tempDirectory.resolve(libraryFilename(name));
             loadFromClassPath(name, base, sourceLibPath, libPath);
         } catch (IOException e) {
             throw new LinkageError("Unable to load native library " + name + "!", e);
         }
+    }
+
+    /**
+     * Where on the classpath the native is taken from: the explicit property when set, otherwise
+     * the per architecture layout of the arch-detect bundle when it holds this platform, otherwise
+     * the single native layout of a classifier artifact. So neither layout needs any setup code.
+     */
+    static String classPathLocation(String name, Class<?> base, String arch) {
+        String explicit = System.getProperty(classPathPropertyNameForLibrary(name));
+        if (explicit != null) {
+            return explicit;
+        }
+        final String libName = libraryFilename(name);
+        final String bundled = "/" + arch + "/native/" + libName;
+        if (base.getResource(bundled) != null) {
+            return bundled;
+        }
+        return LIB_PREFIX + "/" + libName;
     }
 
     private static void loadFromClassPath(String name, Class<?> base, String classPath, Path fsPath) throws IOException {
