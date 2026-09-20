@@ -236,17 +236,17 @@ val allTargets = listOf(
     BuildTarget(
         image = "linux-x64",
         family = "linux",
-        classifier = "x86_64",
+        classifier = "${Constants.LINUX_CLASSIFIER_PREFIX}x86_64",
     ),
 //    BuildTarget(
 //        image = "linux-x86",
 //        family = "linux",
-//        classifier = "x86_32",
+//        classifier = "${Constants.LINUX_CLASSIFIER_PREFIX}x86_32",
 //    ),
     BuildTarget(
         image = "linux-arm64",
         family = "linux",
-        classifier = "aarch64",
+        classifier = "${Constants.LINUX_CLASSIFIER_PREFIX}aarch64",
     ),
     BuildTarget(
         image = "windows-static-x64",

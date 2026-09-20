@@ -14,7 +14,7 @@ permissions:
 
 env:
   # linux and windows are cross compiled on the publishing job, macOS is built on its own runners
-  TARGETS: x86_64,aarch64,windows-x86_64,windows-aarch64,macos-arm64,macos-x86_64
+  TARGETS: linux-x86_64,linux-aarch64,windows-x86_64,windows-aarch64,macos-arm64,macos-x86_64
 
 jobs:
   build-macos:
@@ -73,11 +73,11 @@ jobs:
     strategy:
       matrix:
         include:
-          - classifier: x86_64
-            task: compileNativeForX8664
+          - classifier: linux-x86_64
+            task: compileNativeForLinuxX8664
             library: libdatachannel-java.so
-          - classifier: aarch64
-            task: compileNativeForAarch64
+          - classifier: linux-aarch64
+            task: compileNativeForLinuxAarch64
             library: libdatachannel-java.so
           - classifier: windows-x86_64
             task: compileNativeForWindowsX8664
@@ -148,8 +148,8 @@ jobs:
       run: |
         ./gradlew --no-configuration-cache openCollabDeploy \
           -Plibdatachannel.targets="$TARGETS" \
-          -Plibdatachannel.x86_64.prebuilt-path=artifacts/libdatachannel-x86_64/libdatachannel-java.so \
-          -Plibdatachannel.aarch64.prebuilt-path=artifacts/libdatachannel-aarch64/libdatachannel-java.so \
+          -Plibdatachannel.linux-x86_64.prebuilt-path=artifacts/libdatachannel-linux-x86_64/libdatachannel-java.so \
+          -Plibdatachannel.linux-aarch64.prebuilt-path=artifacts/libdatachannel-linux-aarch64/libdatachannel-java.so \
           -Plibdatachannel.windows-x86_64.prebuilt-path=artifacts/libdatachannel-windows-x86_64/libdatachannel-java.dll \
           -Plibdatachannel.windows-aarch64.prebuilt-path=artifacts/libdatachannel-windows-aarch64/libdatachannel-java.dll \
           -Plibdatachannel.macos-arm64.prebuilt-path=artifacts/libdatachannel-macos-arm64/libdatachannel-java.dylib \

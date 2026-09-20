@@ -29,7 +29,7 @@ with zipfile.ZipFile(root / f'libdatachannel-java-{version}.jar', 'w') as jar:
         if folder.exists():
             for path in sorted(folder.rglob('*')):
                 if path.is_file(): add(jar, path, path.relative_to(folder).as_posix())
-with zipfile.ZipFile(root / f'libdatachannel-java-{version}-x86_64.jar', 'w') as jar:
+with zipfile.ZipFile(root / f'libdatachannel-java-{version}-linux-x86_64.jar', 'w') as jar:
     add(jar, pathlib.Path('build/native-probe/libdatachannel-java.so'), 'native/libdatachannel-java.so')
 (root / f'libdatachannel-java-{version}.pom').write_text(f'''<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>
 <groupId>dev.opencollab</groupId><artifactId>libdatachannel-java</artifactId><version>{version}</version>

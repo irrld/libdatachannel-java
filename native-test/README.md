@@ -110,10 +110,10 @@ use native-generated certificates.
 From a clean committed tree, `scripts/package-development.sh [maven-directory]`
 runs native and JVM regressions and writes an immutable local artifact under
 `io.github.teamziax:libdatachannel-java:<native-version>.0-dev.<full-commit>`.
-The classifier is `x86_64`. `provenance.json` records all three source SHAs and
-artifact hashes. This binary targets the current host's system OpenSSL/ABI; it is
-not a portable dockcross release. Nothing is uploaded. Rebuild headers and JNI
-together after changing the pinned native version.
+The classifier is `linux-x86_64`. `provenance.json` records all three source
+SHAs and artifact hashes. This binary targets the current host's system
+OpenSSL/ABI; it is not a portable dockcross release. Nothing is uploaded.
+Rebuild headers and JNI together after changing the pinned native version.
 
 For local CMake experiments, `LIBDATACHANNEL_SOURCE_DIR` can select a separate
 libdatachannel checkout. The Gradle probe and packaging tasks explicitly select
