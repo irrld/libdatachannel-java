@@ -7,6 +7,12 @@ set -x
 export CONAN_HOME="${OUTPUT_DIR}/conan/home"
 # OpenSSL's makefile constructs broken compiler paths due to CROSS_COMPILE
 export CROSS_COMPILE=""
+# Clearing CROSS_COMPILE also unprefixes ranlib, and the host one cannot index every target's
+# archives, so it is derived from the cross ar instead
+if [ -z "${RANLIB:-}" ] && [ -n "${AR:-}" ] && [ -x "${AR%ar}ranlib" ]
+then
+  export RANLIB="${AR%ar}ranlib"
+fi
 
 predefined_profile_path='/conan-profile.ini'
 classifier_profile_path="${MOUNT_SOURCE}/jni/conan-profiles/$TARGET_CLASSIFIER.ini"
