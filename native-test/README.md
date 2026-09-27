@@ -36,7 +36,11 @@ and forbids waiting inside native event callbacks. The native teardown test
 stalls a worker and retains a transport reference, so completion cannot be
 mistaken for task submission or handle removal. `CallbackCleanupProbe` closes
 100 peers and verifies that all 300 peer/channel wrappers become collectible
-without native invalid-handle errors. To run the normal JNI lifecycle tests with
+without native invalid-handle errors. `CallbackDispatchProbe` closes peers while
+libdatachannel delivers their Closed ICE state from its own thread, once with the
+test build's dispatch delay between reading the user pointer and using it, once
+with the Java listener still running. It runs with `-Xcheck:jni`, so a released
+global reference fails the probe. To run the normal JNI lifecycle tests with
 a focused binary, pass `-Plibdatachannel.test-native-path=/absolute/library.so`
 to the Gradle `test` task.
 

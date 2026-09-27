@@ -210,10 +210,10 @@ Java_tel_schich_libdatachannel_LibDataChannelNative_rtcClosePeerConnection(JNIEn
 JNIEXPORT jint JNICALL
 Java_tel_schich_libdatachannel_LibDataChannelNative_rtcDeletePeerConnection(JNIEnv* env, jclass clazz,
                                                                             const jint peerHandle) {
-    const auto* callback = static_cast<jvm_callback*>(rtcGetUserPointer(peerHandle));
+    void* callback = rtcGetUserPointer(peerHandle);
     const jint result = rtcDeletePeerConnection(peerHandle);
-    if (result == RTC_ERR_SUCCESS && callback != nullptr) {
-        free_callback(env, callback);
+    if (result == RTC_ERR_SUCCESS) {
+        release_callback(callback);
     }
 
     return result;
@@ -333,12 +333,12 @@ JNIEXPORT jobject JNICALL Java_tel_schich_libdatachannel_LibDataChannelNative_rt
 }
 
 JNIEXPORT jint JNICALL Java_tel_schich_libdatachannel_LibDataChannelNative_setupPeerConnectionListener(JNIEnv* env, jclass clazz, const jint peerHandle, jobject listener) {
-    jvm_callback* jvm_callback = allocate_callback(env, listener);
-    if (jvm_callback == nullptr) {
+    void* callback = register_callback(env, listener);
+    if (callback == nullptr) {
         throw_native_exception(env, "Failed to allocate callback for PeerConnectionListener");
         return EXCEPTION_THROWN;
     }
-    rtcSetUserPointer(peerHandle, jvm_callback);
+    rtcSetUserPointer(peerHandle, callback);
 
     return RTC_ERR_SUCCESS;
 }
@@ -378,6 +378,16 @@ JNIEXPORT jlong JNICALL Java_tel_schich_libdatachannel_LibDataChannelNative_rtcG
     return static_cast<jlong>(rtcGetPeerConnectionCreationAttempts());
 #else
     throw_native_exception(env, "Native construction diagnostics require a test build");
+    return -1;
+#endif
+}
+
+JNIEXPORT jint JNICALL Java_tel_schich_libdatachannel_LibDataChannelNative_setTestDispatchDelay(
+        JNIEnv* env, jclass clazz, const jint millis) {
+#ifdef RTC_ENABLE_TEST_DIAGNOSTICS
+    return set_test_dispatch_delay(millis);
+#else
+    throw_native_exception(env, "Native dispatch delays require a test build");
     return -1;
 #endif
 }

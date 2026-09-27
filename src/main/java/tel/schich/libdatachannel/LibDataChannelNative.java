@@ -13,6 +13,7 @@ class LibDataChannelNative {
     static native int rtcCreatePeerConnectionWithIdentity(String @Nullable [] iceServers, @Nullable String proxyServer, @Nullable String bindAddress, int certificateType, int iceTransportPolicy, boolean enableIceTcp, boolean enableIceUdpMux, boolean disableAutoNegotiation, boolean forceMediaTransport, int portRangeBegin, int portRangeEnd, int mtu, int maxMessageSize, @Nullable String certificateFile, @Nullable String keyFile, @Nullable String keyPassword);
     static native int setupPeerConnectionListener(int peerHandle, PeerConnectionListener listener);
     static native long rtcGetPeerConnectionCreationAttempts();
+    static native int setTestDispatchDelay(int millis);
     static native int rtcClosePeerConnection(int peerHandle);
     static native int rtcClosePeerConnectionAndWait(int peerHandle, int timeoutMs);
     static native int rtcDeletePeerConnection(int peerHandle);
