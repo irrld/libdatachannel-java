@@ -183,7 +183,7 @@ fun DockcrossRunTask.baseConfigure(outputTo: Directory, target: BuildTarget) {
     configureSshRemoteBuild(target)
 }
 
-fun Jar.baseConfigure(compileTask: TaskProvider<DockcrossRunTask>, buildOutputDir: Directory) {
+fun Jar.baseConfigure(compileTask: TaskProvider<out Task>, buildOutputDir: Directory) {
     group = nativeGroup
 
     dependsOn(compileTask)
@@ -212,6 +212,7 @@ data class BuildTarget(
     val image: String?,
     val family: String,
     val classifier: String,
+    val nativeLinuxContainer: Boolean = false,
     val env: Map<String, String> = emptyMap(),
     val args: List<String> = emptyList(),
     val outputTo: NamedDomainObjectProvider<Configuration> = archDetectConfiguration,
@@ -234,9 +235,9 @@ fun macosTarget(classifier: String, arch: String) = BuildTarget(
 
 val allTargets = listOf(
     BuildTarget(
-        image = "linux-x64",
+        image = null,
         family = "linux",
-        classifier = "${Constants.LINUX_CLASSIFIER_PREFIX}x86_64",
+        classifier = "${Constants.LINUX_CLASSIFIER_PREFIX}glibc-x86_64",
     ),
 //    BuildTarget(
 //        image = "linux-x86",
@@ -244,9 +245,21 @@ val allTargets = listOf(
 //        classifier = "${Constants.LINUX_CLASSIFIER_PREFIX}x86_32",
 //    ),
     BuildTarget(
-        image = "linux-arm64",
+        image = null,
         family = "linux",
-        classifier = "${Constants.LINUX_CLASSIFIER_PREFIX}aarch64",
+        classifier = "${Constants.LINUX_CLASSIFIER_PREFIX}glibc-aarch64",
+    ),
+    BuildTarget(
+        image = "alpine:3.22",
+        family = "linux",
+        classifier = "linux-musl-x86_64",
+        nativeLinuxContainer = true,
+    ),
+    BuildTarget(
+        image = "alpine:3.22",
+        family = "linux",
+        classifier = "linux-musl-aarch64",
+        nativeLinuxContainer = true,
     ),
     BuildTarget(
         image = "windows-static-x64",
@@ -304,36 +317,90 @@ for (target in targets) {
 
     val packageTaskName = "packageNativeFor$taskSuffix"
     val packageNative = if (prebuiltPath == null) {
-        val compileNative = tasks.register("compileNativeFor$taskSuffix", DockcrossRunTask::class) {
-            baseConfigure(outputDir, target)
-            unsafeWritableMountSource = true
-            containerName = "dockcross-${project.name}-${target.classifier}"
-        }
-
-
-        if (ci) {
-            val previous = previousCompileNative
-            compileNative {
-                if (target.image == null) {
-                    runner(NonContainerRunner)
+        val compileNative: TaskProvider<out Task>
+        if (target.nativeLinuxContainer) {
+            compileNative = tasks.register<Exec>("compileNativeFor$taskSuffix") {
+                group = nativeGroup
+                dependsOn(tasks.compileJava)
+                inputs.dir(jniPath)
+                inputs.property("version", project.version.toString())
+                inputs.property("release", buildReleaseBinaries)
+                inputs.property("image", target.image!!)
+                outputs.file(outputDir.file("native/libdatachannel-java.so"))
+                val architecture = if (target.classifier.endsWith("aarch64")) {
+                    "arm64"
                 } else {
-                    runner(DockerRunner())
+                    "amd64"
                 }
-                if (previous != null) {
-                    mustRunAfter(previous)
-                }
+                commandLine("docker", "run", "--rm", "--platform", "linux/$architecture",
+                    "-v", "${project.projectDir}:/work:z", "-w", "/work",
+                    "-e", "TARGET_CLASSIFIER=${target.classifier}",
+                    "-e", "PROJECT_VERSION=${project.version}",
+                    "-e", "PROJECT_BUILD_TYPE=${if (buildReleaseBinaries) "Release" else "Debug"}",
+                    "-e", "JOBS=${project.gradle.startParameter.maxWorkerCount}",
+                    target.image!!, "sh", "jni/build-alpine.sh")
+            }
+        } else if (target.classifier.startsWith("linux-glibc-")) {
+            compileNative = tasks.register<Exec>("compileNativeFor$taskSuffix") {
+                group = nativeGroup
+                dependsOn(tasks.compileJava)
+                inputs.dir(jniPath)
+                inputs.property("version", project.version.toString())
+                inputs.property("release", buildReleaseBinaries)
+                outputs.file(outputDir.file("native/libdatachannel-java.so"))
+                environment("TARGET_CLASSIFIER", target.classifier)
+                environment("PROJECT_VERSION", project.version.toString())
+                environment("PROJECT_BUILD_TYPE", if (buildReleaseBinaries) "Release" else "Debug")
+                environment("JOBS", project.gradle.startParameter.maxWorkerCount.toString())
+                commandLine("sh", "jni/build-linux.sh")
+            }
+        } else if (target.family == "windows" && System.getProperty("os.name").startsWith("Windows")) {
+            compileNative = tasks.register<Exec>("compileNativeFor$taskSuffix") {
+                group = nativeGroup
+                dependsOn(tasks.compileJava)
+                inputs.dir(jniPath)
+                inputs.property("version", project.version.toString())
+                inputs.property("release", buildReleaseBinaries)
+                outputs.file(outputDir.file("native/libdatachannel-java.dll"))
+                environment("TARGET_CLASSIFIER", target.classifier)
+                environment("PROJECT_VERSION", project.version.toString())
+                environment("PROJECT_BUILD_TYPE", if (buildReleaseBinaries) "Release" else "Debug")
+                environment("JOBS", project.gradle.startParameter.maxWorkerCount.toString())
+                commandLine(providers.environmentVariable("MSYS2_BASH").getOrElse("bash"), "jni/build-windows.sh")
+            }
+        } else {
+            val dockcrossCompile = tasks.register("compileNativeFor$taskSuffix", DockcrossRunTask::class) {
+                baseConfigure(outputDir, target)
+                unsafeWritableMountSource = true
+                containerName = "dockcross-${project.name}-${target.classifier}"
+            }
 
-                if (target.image != null) {
-                    val execOps = project.serviceOf<ExecOperations>()
-                    doLast {
-                        execOps.exec {
-                            commandLine("docker", "image", "prune", "-af")
+
+            if (ci) {
+                val previous = previousCompileNative
+                dockcrossCompile {
+                    if (target.image == null) {
+                        runner(NonContainerRunner)
+                    } else {
+                        runner(DockerRunner())
+                    }
+                    if (previous != null) {
+                        mustRunAfter(previous)
+                    }
+
+                    if (target.image != null) {
+                        val execOps = project.serviceOf<ExecOperations>()
+                        doLast {
+                            execOps.exec {
+                                commandLine("docker", "image", "prune", "-af")
+                            }
                         }
                     }
                 }
-            }
 
-            previousCompileNative = compileNative
+                previousCompileNative = dockcrossCompile
+            }
+            compileNative = dockcrossCompile
         }
 
         tasks.register(packageTaskName, Jar::class) {
@@ -542,4 +609,16 @@ tasks.register<JavaExec>("nativeStunMonitorProbe") {
     classpath = probeSourceSet.runtimeClasspath
     mainClass = "tel.schich.libdatachannel.NativeStunMonitorProbe"
     systemProperty("libdatachannel.native.datachannel-java.path", layout.buildDirectory.file("native-probe/libdatachannel-java.so").get().asFile.absolutePath)
+}
+
+// A portable classpath for running the shipped bundle inside target JVMs.
+tasks.register<Sync>("prepareNativeSmoke") {
+    dependsOn(tasks.named(probeSourceSet.classesTaskName))
+    from(tasks.jar)
+    from(project(":libdatachannel-java-arch-detect").tasks.named("jar"))
+    from(configurations[probeSourceSet.runtimeClasspathConfigurationName])
+    from(probeSourceSet.output) {
+        into("classes")
+    }
+    into(layout.buildDirectory.dir("native-smoke"))
 }

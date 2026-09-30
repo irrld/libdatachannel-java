@@ -15,10 +15,17 @@ version="${native_version}.0-dev.${revision}"
   -Plibdatachannel.development-version="$version" \
   -Plibdatachannel.test-native-path="$PWD/build/native-probe/libdatachannel-java.so"
 python3 - "$output" "$version" "$revision" <<'PY'
-import hashlib, json, pathlib, subprocess, sys, zipfile
+import hashlib, json, pathlib, platform, subprocess, sys, zipfile
 output, version, revision = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
 root = output / 'dev/opencollab/libdatachannel-java' / version
 root.mkdir(parents=True, exist_ok=True)
+architecture = platform.machine()
+if architecture not in {"x86_64", "aarch64"}:
+    raise SystemExit(f"Unsupported development architecture: {architecture}")
+mappings = pathlib.Path('/proc/self/maps').read_text()
+libc = 'musl' if 'ld-musl-' in mappings or 'libc.musl-' in mappings else 'glibc'
+classifier = f'linux-{libc}-{architecture}'
+
 def add(jar, path, name):
     info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
     info.compress_type = zipfile.ZIP_DEFLATED
@@ -29,7 +36,7 @@ with zipfile.ZipFile(root / f'libdatachannel-java-{version}.jar', 'w') as jar:
         if folder.exists():
             for path in sorted(folder.rglob('*')):
                 if path.is_file(): add(jar, path, path.relative_to(folder).as_posix())
-with zipfile.ZipFile(root / f'libdatachannel-java-{version}-linux-x86_64.jar', 'w') as jar:
+with zipfile.ZipFile(root / f'libdatachannel-java-{version}-{classifier}.jar', 'w') as jar:
     add(jar, pathlib.Path('build/native-probe/libdatachannel-java.so'), 'native/libdatachannel-java.so')
 (root / f'libdatachannel-java-{version}.pom').write_text(f'''<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>
 <groupId>dev.opencollab</groupId><artifactId>libdatachannel-java</artifactId><version>{version}</version>
@@ -43,7 +50,7 @@ provenance = {
     'bindingRevision': revision,
     'libdatachannelRevision': head('jni/libdatachannel'),
     'libjuiceRevision': head('jni/libdatachannel/deps/libjuice'),
-    'platform': 'linux-x86_64',
+    'platform': classifier,
     'nativeBuild': 'system OpenSSL, Debug, current host ABI; not a portable release',
     'checks': ['nativeTransportProbe', 'nativeCallbackCleanupProbe', 'nativeLoggingProbe', 'test'],
     'sha256': {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted(root.iterdir()) if path.is_file()},

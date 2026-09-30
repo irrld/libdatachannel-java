@@ -20,10 +20,9 @@ tasks.test {
 }
 
 tasks.compileJava {
+    // Keep Java 11 bytecode/API compatibility while using the JDK 17 toolchain
+    // available natively on Windows ARM64 as well as the other build hosts.
     options.release = 11
-    javaCompiler = javaToolchains.compilerFor {
-        languageVersion = JavaLanguageVersion.of(11)
-    }
 }
 
 tasks.withType<JavaCompile>().configureEach {

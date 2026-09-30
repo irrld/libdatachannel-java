@@ -46,10 +46,10 @@ class Platform {
     }
 
     public static OS getOS() {
-        if (isLinux()) {
-            return OS.LINUX;
-        } else if (isAndroid()) {
+        if (isAndroid()) {
             return OS.ANDROID;
+        } else if (isLinux()) {
+            return OS.LINUX;
         } else if (isMacOS()) {
             return OS.MACOS;
         } else if (isWindows()) {
@@ -75,22 +75,36 @@ class Platform {
 
     private static String archPrefixForOs() {
         switch (getOS()) {
-            case LINUX:
-                return "linux-";
-            case WINDOWS:
+            case LINUX: {
+                return "linux-" + LinuxLibc.detect() + "-";
+            }
+            case WINDOWS: {
                 return "windows-";
-            case ANDROID:
+            }
+            case ANDROID: {
                 return "android-";
-            case MACOS:
+            }
+            case MACOS: {
                 return "macos-";
-            default:
+            }
+            default: {
                 return "";
+            }
         }
     }
 
     private static String detectCpuArch() {
         String arch = System.getProperty("os.arch").toLowerCase();
-        if (arch.contains("arm")) {
+        return detectCpuArch(arch, getOS());
+    }
+
+    static String detectCpuArch(String arch, OS os) {
+        if (arch.equals("aarch64") || arch.equals("arm64")) {
+            if (os == OS.MACOS) {
+                return "arm64";
+            }
+            return "aarch64";
+        } else if (arch.contains("arm")) {
             return "armv7";
         } else if (arch.contains("86") || arch.contains("amd")) {
             if (arch.contains("64")) {
@@ -102,11 +116,6 @@ class Platform {
                 return "riscv64";
             }
             return "riscv32";
-        } else if (arch.contains("aarch64") || arch.contains("arm64")) {
-            if (getOS() == OS.MACOS) {
-                return "arm64"; // macOS uses arm64 instead of aarch64
-            }
-            return "aarch64";
         }
         return arch;
     }
@@ -133,7 +142,13 @@ class Platform {
             return;
         }
 
-        final String sourceLibPath = classPathLocation(name, base, detectArch());
+        String explicitClassPath = System.getProperty(classPathPropertyNameForLibrary(name));
+        final String sourceLibPath;
+        if (explicitClassPath != null) {
+            sourceLibPath = explicitClassPath;
+        } else {
+            sourceLibPath = classPathLocation(name, base, detectArch());
+        }
         LOGGER.trace("Loading native library {} from {}", name, sourceLibPath);
         try {
             final Path tempDirectory = Files.createTempDirectory(name + "-");
