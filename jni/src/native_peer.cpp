@@ -348,6 +348,21 @@ JNIEXPORT jint JNICALL Java_tel_schich_libdatachannel_LibDataChannelNative_rtcGe
     return rtcGetRtt(peerHandle);
 }
 
+JNIEXPORT jobject JNICALL Java_tel_schich_libdatachannel_LibDataChannelNative_rtcGetSctpStats(JNIEnv* env,
+                                                                                             jclass clazz,
+                                                                                             const jint peerHandle) {
+    rtcSctpStats stats{};
+    const int status = rtcGetSctpStats(peerHandle, &stats);
+    // Not connected yet is an answer, a bad handle is not
+    if (status == RTC_ERR_NOT_AVAIL || wrap_error(env, "rtcGetSctpStats", status) == EXCEPTION_THROWN) {
+        return nullptr;
+    }
+    return call_tel_schich_libdatachannel_SctpStats_create(env, stats.rtt, stats.rto,
+        static_cast<jlong>(stats.congestionWindow), static_cast<jlong>(stats.peerReceiveWindow),
+        static_cast<jlong>(stats.unackedChunks), static_cast<jlong>(stats.pendingChunks),
+        static_cast<jlong>(stats.dataTimeouts));
+}
+
 JNIEXPORT jint JNICALL Java_tel_schich_libdatachannel_LibDataChannelNative_rtcSetLocalDescriptionWithIce(
         JNIEnv* env, jclass clazz, const jint peer, jstring type, jstring ufrag, jstring password) {
     const char* c_type = type != nullptr ? env->GetStringUTFChars(type, nullptr) : nullptr;

@@ -387,11 +387,14 @@ public final class NativeTransportProbe {
                 check("udp".equals(pair.localTransport()) && "udp".equals(pair.remoteTransport()) &&
                     "host".equals(pair.remoteType()),
                     "selected candidate metadata is retained");
+                SctpStats sctp = client.sctpStats().orElseThrow(() -> new AssertionError("connected association reports SCTP stats"));
+                check(sctp.congestionWindow() > 0 && sctp.peerReceiveWindow() > 0 && !sctp.rto().isZero() &&
+                    sctp.dataTimeouts() == 0, "SCTP stats describe a healthy loopback association");
                 long[] stats = mux.stats();
                 check(notifications.get() == 1 && stats[5] == 1 && stats[2] == 1 && stats[3] == 1 && stats[0] > 10,
                     "transport traffic stays native after one admission callback");
                 System.out.println("native-transport PASS ufragChars=" + ufragLength + " admissionCallbacks=1 duplicates=" + stats[6] +
-                    " datagrams=" + stats[0] + " channels=2 messages=402");
+                    " datagrams=" + stats[0] + " channels=2 messages=402 " + sctp);
             }
         } finally { if (host != null) check(host.closeAndAwait(Duration.ofSeconds(5)), "accepted peer native cleanup"); }
     }

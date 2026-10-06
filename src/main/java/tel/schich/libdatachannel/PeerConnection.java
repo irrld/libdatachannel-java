@@ -499,6 +499,15 @@ public class PeerConnection implements Closeable {
         return Optional.of(Duration.ofMillis(millis));
     }
 
+    /**
+     * Retrieves what the underlying SCTP association reports about itself.
+     *
+     * @return the association's stats, empty until it is connected
+     */
+    public Optional<SctpStats> sctpStats() {
+        return Optional.ofNullable(LibDataChannelNative.rtcGetSctpStats(peerHandle));
+    }
+
     public void setAnswer(String sdp) {
         this.setRemoteDescription(sdp, SessionDescriptionType.ANSWER);
     }
