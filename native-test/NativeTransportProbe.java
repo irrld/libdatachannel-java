@@ -44,6 +44,10 @@ public final class NativeTransportProbe {
             " typ host\r\na=end-of-candidates\r\n";
     }
     public static void main(String[] args) throws Exception {
+        // Set before the first peer, the associations below have to run on it
+        LibDataChannel.setSctpSettings(SctpSettings.builder().minRetransmitTimeoutMs(400)
+            .initialRetransmitTimeoutMs(500).maxRetransmitTimeoutMs(3000).delayedSackTimeMs(200)
+            .maxRetransmitAttempts(5).build());
         Path certificate = Path.of(args[0]), key = Path.of(args[1]);
         byte[] der;
         try (var input = Files.newInputStream(certificate)) {
@@ -390,6 +394,7 @@ public final class NativeTransportProbe {
                 SctpStats sctp = client.sctpStats().orElseThrow(() -> new AssertionError("connected association reports SCTP stats"));
                 check(sctp.congestionWindow() > 0 && sctp.peerReceiveWindow() > 0 && !sctp.rto().isZero() &&
                     sctp.dataTimeouts() == 0, "SCTP stats describe a healthy loopback association");
+                check(sctp.rto().toMillis() >= 400, "SCTP settings raise the minimum RTO, got " + sctp.rto());
                 long[] stats = mux.stats();
                 check(notifications.get() == 1 && stats[5] == 1 && stats[2] == 1 && stats[3] == 1 && stats[0] > 10,
                     "transport traffic stays native after one admission callback");

@@ -13,6 +13,7 @@ public abstract class LibDataChannel {
     private static volatile boolean initialized = false;
     // Read by JNI_OnLoad before rtcPreload can emit transport logs.
     private static int nativeLogLevel = LogLevel.WARNING.value;
+    private static SctpSettings sctpSettings;
 
     /** Native filtering happens before a message crosses into Java. */
     public enum LogLevel {
@@ -42,6 +43,29 @@ public abstract class LibDataChannel {
     private static native void setLogLevelNative(int level);
 
     /**
+     * Sets SCTP tuning for every association created afterwards, before or after initialization, so it has to come
+     * before the first {@link PeerConnection}. The settings are process-wide and each call replaces the whole set,
+     * so every user of the library in the process shares the last one.
+     */
+    public static synchronized void setSctpSettings(SctpSettings settings) {
+        sctpSettings = Objects.requireNonNull(settings, "settings");
+        if (initialized) applySctpSettings(settings);
+    }
+
+    private static void applySctpSettings(SctpSettings s) {
+        setSctpSettingsNative(s.recvBufferSize, s.sendBufferSize, s.maxChunksOnQueue, s.initialCongestionWindow,
+            s.maxBurst, s.congestionControlModule, s.delayedSackTimeMs, s.minRetransmitTimeoutMs,
+            s.maxRetransmitTimeoutMs, s.initialRetransmitTimeoutMs, s.maxRetransmitAttempts, s.heartbeatIntervalMs);
+    }
+
+    private static native void setSctpSettingsNative(int recvBufferSize, int sendBufferSize, int maxChunksOnQueue,
+                                                     int initialCongestionWindow, int maxBurst,
+                                                     int congestionControlModule, int delayedSackTimeMs,
+                                                     int minRetransmitTimeoutMs, int maxRetransmitTimeoutMs,
+                                                     int initialRetransmitTimeoutMs, int maxRetransmitAttempts,
+                                                     int heartbeatIntervalMs);
+
+    /**
      * Initializes the library by loading the native library.
      */
     public synchronized static void initialize() {
@@ -50,6 +74,7 @@ public abstract class LibDataChannel {
         }
 
         Platform.loadNativeLibrary(LIB_NAME, LibDataChannel.class);
+        if (sctpSettings != null) applySctpSettings(sctpSettings);
 
         initialized = true;
     }

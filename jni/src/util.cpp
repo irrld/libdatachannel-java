@@ -61,3 +61,24 @@ JNIEXPORT void JNICALL Java_tel_schich_libdatachannel_LibDataChannel_freeMemory(
     const auto ptr = reinterpret_cast<void*>(static_cast<intptr_t>(address));
     free(ptr);
 }
+
+JNIEXPORT void JNICALL Java_tel_schich_libdatachannel_LibDataChannel_setSctpSettingsNative(
+        JNIEnv* env, jclass clazz, const jint recvBufferSize, const jint sendBufferSize, const jint maxChunksOnQueue,
+        const jint initialCongestionWindow, const jint maxBurst, const jint congestionControlModule,
+        const jint delayedSackTimeMs, const jint minRetransmitTimeoutMs, const jint maxRetransmitTimeoutMs,
+        const jint initialRetransmitTimeoutMs, const jint maxRetransmitAttempts, const jint heartbeatIntervalMs) {
+    rtcSctpSettings settings{};
+    settings.recvBufferSize = recvBufferSize;
+    settings.sendBufferSize = sendBufferSize;
+    settings.maxChunksOnQueue = maxChunksOnQueue;
+    settings.initialCongestionWindow = initialCongestionWindow;
+    settings.maxBurst = maxBurst;
+    settings.congestionControlModule = congestionControlModule;
+    settings.delayedSackTimeMs = delayedSackTimeMs;
+    settings.minRetransmitTimeoutMs = minRetransmitTimeoutMs;
+    settings.maxRetransmitTimeoutMs = maxRetransmitTimeoutMs;
+    settings.initialRetransmitTimeoutMs = initialRetransmitTimeoutMs;
+    settings.maxRetransmitAttempts = maxRetransmitAttempts;
+    settings.heartbeatIntervalMs = heartbeatIntervalMs;
+    wrap_error(env, "rtcSetSctpSettings", rtcSetSctpSettings(&settings));
+}
