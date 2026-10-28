@@ -78,6 +78,31 @@ extern "C" JNIEXPORT jint JNICALL Java_tel_schich_libdatachannel_IceUdpMuxListen
     return result;
 }
 
+extern "C" JNIEXPORT jstring JNICALL Java_tel_schich_libdatachannel_IceUdpMuxListener_proxyRelayNative(
+        JNIEnv* env, jclass clazz, jstring address, const jint port, jstring client, const jint clientPort) {
+    // A null address matches peers that leave theirs unset
+    const char* host = address != nullptr ? env->GetStringUTFChars(address, nullptr) : nullptr;
+    if (address != nullptr && host == nullptr) {
+        return nullptr;
+    }
+    const char* peer = env->GetStringUTFChars(client, nullptr);
+    char relay[64];
+    const int result = peer == nullptr ? RTC_ERR_FAILURE
+        : rtcGetIceUdpMuxProxyRelay(host, static_cast<uint16_t>(port), peer, static_cast<uint16_t>(clientPort),
+                                    relay, sizeof(relay));
+    if (peer != nullptr) {
+        env->ReleaseStringUTFChars(client, peer);
+    }
+    if (host != nullptr) {
+        env->ReleaseStringUTFChars(address, host);
+    }
+    // No relay speaks for the client, which is an answer rather than a failure
+    if (result == RTC_ERR_NOT_AVAIL || wrap_error(env, "rtcGetIceUdpMuxProxyRelay", result) == EXCEPTION_THROWN) {
+        return nullptr;
+    }
+    return env->NewStringUTF(relay);
+}
+
 extern "C" JNIEXPORT jlong JNICALL Java_tel_schich_libdatachannel_IceUdpMuxListener_openNative(
         JNIEnv* env, jobject self, jstring address, const jint port, const jint maxPending, const jint timeoutMs) {
     const auto mux = static_cast<ice_mux*>(calloc(1, sizeof(ice_mux)));

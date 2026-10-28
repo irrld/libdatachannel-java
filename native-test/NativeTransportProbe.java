@@ -91,11 +91,16 @@ public final class NativeTransportProbe {
                 IceUdpMuxListener.Request request = requests.poll(5, TimeUnit.SECONDS);
                 check(request != null && request.remoteAddress().equals("203.0.113.7") && request.remotePort() == 40123,
                     "the relayed request carries the declared client");
+                check(relay.getLocalSocketAddress().equals(
+                        IceUdpMuxListener.proxyRelay(any, PORT, new InetSocketAddress("203.0.113.7", 40123))),
+                    "the declared client's relay is named");
+                check(IceUdpMuxListener.proxyRelay(any, PORT, new InetSocketAddress("203.0.113.7", 40124)) == null,
+                    "a client no relay declared has none");
             } finally {
                 IceUdpMuxListener.setProxyProtocol(any, PORT, List.of());
             }
         }
-        System.out.println("native-transport PASS proxyProtocol=declaredClient");
+        System.out.println("native-transport PASS proxyProtocol=declaredClient,relayNamed");
     }
 
     /** A PROXY v2 header for a UDP datagram from {@code client}, as a relay sends it. */

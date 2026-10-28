@@ -4,6 +4,8 @@ import org.eclipse.jdt.annotation.Nullable;
 import tel.schich.jniaccess.JNIAccess;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
@@ -427,6 +429,29 @@ public final class IceUdpMuxListener implements AutoCloseable {
             Util.bindAddress(bindAddress), port, proxies.toArray(new String[0])));
     }
 
+    /**
+     * The relay a client comes through on a port with {@linkplain #setProxyProtocol PROXY protocol relays},
+     * by the address and port its header declared, which is how the client's peer reports it.
+     *
+     * @return The relay, or null when none speaks for the client, also when none are set
+     */
+    public static @Nullable InetSocketAddress proxyRelay(@Nullable InetAddress bindAddress, int port,
+                                                        InetSocketAddress client) {
+        if (port < 1 || port > 65535) throw new IllegalArgumentException("Explicit UDP port required");
+        if (client.isUnresolved()) throw new IllegalArgumentException("Numeric client address required");
+        LibDataChannel.initialize();
+        String relay = proxyRelayNative(Util.bindAddress(bindAddress), port, client.getAddress().getHostAddress(),
+            client.getPort());
+        if (relay == null) return null;
+        InetSocketAddress raw = Util.parseAddress(relay);
+        try {
+            // Numeric, so no lookup
+            return new InetSocketAddress(InetAddress.getByName(raw.getHostString()), raw.getPort());
+        } catch (UnknownHostException e) {
+            return raw;
+        }
+    }
+
     /** @deprecated Use {@link #statistics()} for named counters. */
     @Deprecated
     public synchronized long[] stats() {
@@ -453,6 +478,8 @@ public final class IceUdpMuxListener implements AutoCloseable {
 
     private native long openNative(@Nullable String address, int port, int maxPendingRequests, int requestTimeoutMillis);
     private static native int setProxyProtocolNative(@Nullable String address, int port, String[] proxies);
+    private static native @Nullable String proxyRelayNative(@Nullable String address, int port, String client,
+        int clientPort);
     private static native void closeNative(long handle);
     private static int[] prepareNative(int handle, long requestId, PeerConnectionConfiguration config,
         String remoteDescription, String localUfrag, String localPassword,
